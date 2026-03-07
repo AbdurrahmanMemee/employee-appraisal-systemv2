@@ -13,10 +13,11 @@ import useAppStore, { useUser } from './store/useAppStore';
 import AppLayout  from './components/layout/AppLayout';
 import AuthGuard  from './components/layout/AuthGuard';
 
-// Pages — real modules
+// Pages — real modules (replace Placeholder imports as each is built)
 import LoginPage     from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import EmployeesPage from './pages/EmployeesPage';
+import MeetingsPage  from './pages/MeetingsPage';
 
 // Pages — placeholders (replaced as each module is built)
 import {
@@ -89,15 +90,16 @@ const App = () => {
       <Route path="/login" element={<LoginPage />} />
 
       {/* Protected — all roles */}
-      <Route path="/dashboard" element={<Protected><DashboardPage /></Protected>} />
-      <Route path="/employees" element={<Protected><EmployeesPage /></Protected>} />
-      <Route path="/schedules" element={<Protected><SchedulesPage /></Protected>} />
+      <Route path="/dashboard"  element={<Protected><DashboardPage /></Protected>} />
+      <Route path="/employees"  element={<Protected><EmployeesPage /></Protected>} />
+      <Route path="/meetings"   element={<Protected><MeetingsPage /></Protected>} />
+      <Route path="/schedules"  element={<Protected><SchedulesPage /></Protected>} />
 
       {/* Protected — admin + manager only */}
-      <Route path="/incidents" element={<Protected requiredRole="manager"><IncidentsPage /></Protected>} />
+      <Route path="/incidents"  element={<Protected requiredRole="manager"><IncidentsPage /></Protected>} />
 
       {/* Protected — admin only */}
-      <Route path="/config" element={<Protected requiredRole="admin"><ConfigPage /></Protected>} />
+      <Route path="/config"     element={<Protected requiredRole="admin"><ConfigPage /></Protected>} />
 
       {/* Default redirects */}
       <Route path="/"   element={<Navigate to={user ? '/dashboard' : '/login'} replace />} />

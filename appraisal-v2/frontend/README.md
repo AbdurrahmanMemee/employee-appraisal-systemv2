@@ -80,6 +80,7 @@ frontend/
         ├── LoginPage.jsx             Login form
         ├── DashboardPage.jsx         Dashboard — stats, upcoming, activity, dept table
         ├── EmployeesPage.jsx         Employees — list, detail, create/edit form
+        ├── MeetingsPage.jsx          Meetings — list, detail, create/edit form, last-meeting link
         └── Placeholder.jsx           Stubs for modules not yet built
 ```
 
@@ -104,10 +105,10 @@ Protected routes are wrapped in `<AuthGuard>` + `<AppLayout>` + `<ErrorBoundary>
 **Adding a new module:** build the page component, then swap its `Placeholder` import in `App.jsx` for the real one:
 ```jsx
 // Before
-import { MeetingsPage } from './pages/Placeholder';
+import { AppraisalsPage } from './pages/Placeholder';
 
 // After
-import MeetingsPage from './pages/MeetingsPage';
+import AppraisalsPage from './pages/AppraisalsPage';
 ```
 
 ---
@@ -396,7 +397,56 @@ POST   /api/employees/:id/restore
 
 ---
 
-## Testing
+### Meetings (`src/pages/MeetingsPage.jsx`) ✅
+
+Three internal views (no URL change), controlled by `view` state: `'list'` → `'detail'` or `'form'`.
+
+**List view**
+- Paginated table (PAGE_SIZE = 20), columns: Date, Employee + Department, Type, Conclusion (truncated), Attachment indicator
+- Client-side sort by Date or Employee Name
+- Filter dropdowns: Employee (from active employees), Meeting Type (from config), Date From / Date To
+- Clear filters button, Refresh button
+- "New Meeting" button visible to Manager + Admin only
+
+**Detail view**
+- Breadcrumb: Meetings › Employee Name — Date
+- Header card with meeting type badge and Edit / Delete buttons
+- Two info cards: Meeting Details (date, employee, people present, recorded by) and Brief Note + attachment download link
+- Conclusion card (full text)
+- Detailed Summary card (if present)
+- Delete requires ConfirmDialog — Admin only, hard delete, removes PDF from disk
+
+**Form view** (create + edit, same component)
+- Fields: Employee\*, Meeting Date\* (defaults to today), Meeting Type\*, People Present, Brief Note, Detailed Summary, Conclusion\*, PDF Attachment (\* = required)
+- Employee selector **locked on edit** — cannot reassign a meeting to a different employee
+- PDF file picker → multipart upload on create, `uploadAttachment` on edit
+- Existing attachment preserved if no new file chosen on edit
+
+**Last Meeting Link** (v2 required feature — was missing in v1)
+- Appears automatically below the Employee selector whenever an employee is selected
+- Fetches `GET /api/meetings?employee_id=X&limit=2` and shows the most recent previous meeting
+- Displayed as a clickable blue banner: date + type + brief note preview
+- Clicking navigates to that meeting's DetailView — Back button returns to the form, not the list
+- On edit, excludes the meeting being edited from the lookup (won't link to itself)
+- Shows "No previous meetings on record" if the employee has no prior meetings
+
+**Role rules:**
+
+| Action | Employee | Manager | Admin |
+|--------|----------|---------|-------|
+| View list + detail | ✅ | ✅ | ✅ |
+| Create + edit | ❌ | ✅ | ✅ |
+| Delete | ❌ | ❌ | ✅ |
+
+**API calls:**
+```
+GET    /api/meetings?page=&limit=&employee_id=&meeting_type=&date_from=&date_to=
+GET    /api/meetings/:id
+POST   /api/meetings                        (JSON or multipart/form-data with attachment)
+PUT    /api/meetings/:id                    (JSON — text fields only)
+POST   /api/meetings/:id/attachment         (multipart — replace PDF)
+DELETE /api/meetings/:id                    (hard delete — admin only)
+```
 
 All test scripts live in `frontend/scripts/`. Run from the `appraisal-v2/` directory:
 
@@ -404,6 +454,7 @@ All test scripts live in `frontend/scripts/`. Run from the `appraisal-v2/` direc
 node frontend/scripts/test-frontend-foundation.cjs          # ~50 checks
 node frontend/scripts/test-frontend-foundation.cjs --full   # + npm install + vite build
 node frontend/scripts/test-employees-frontend.cjs           # ~40 checks — Employees module
+node frontend/scripts/test-meetings-frontend.cjs            # ~45 checks — Meetings module
 ```
 
 ---
@@ -415,8 +466,8 @@ node frontend/scripts/test-employees-frontend.cjs           # ~40 checks — Emp
 | Login | `src/pages/LoginPage.jsx` | ✅ Done |
 | Dashboard | `src/pages/DashboardPage.jsx` | ✅ Done |
 | Employees | `src/pages/EmployeesPage.jsx` | ✅ Done |
-| Meetings | `src/pages/MeetingsPage.jsx` | 🔄 Next |
-| Appraisals | `src/pages/AppraisalsPage.jsx` | ⏳ Pending |
+| Meetings | `src/pages/MeetingsPage.jsx` | ✅ Done |
+| Appraisals | `src/pages/AppraisalsPage.jsx` | 🔄 Next |
 | Incidents | `src/pages/IncidentsPage.jsx` | ⏳ Pending |
 | Schedules | `src/pages/SchedulesPage.jsx` | ⏳ Pending |
 | Config | `src/pages/ConfigPage.jsx` | ⏳ Pending |
@@ -434,4 +485,5 @@ node frontend/scripts/test-employees-frontend.cjs           # ~40 checks — Emp
 | bcryptjs not bcrypt | Package installed is `bcryptjs`. Never use `require('bcrypt')` in any scripts |
 | Shell `!` in passwords | Always use single quotes: `'Admin123!'` not `"Admin123!"` in bash |
 | Test scripts location | All frontend tests live in `frontend/scripts/` — not `backend/scripts/` |
+| `useFormValidation` is default export | `import useFormValidation from '../hooks/useFormValidation'` — no curly braces. Same for `useApi`. Always `grep "export"` on a hook file before importing it |
 | employeeAPI response shape | `getAll()` returns `res.data` — access employees via `res.data?.employees \|\| res.data \|\| []` as the shape may vary |

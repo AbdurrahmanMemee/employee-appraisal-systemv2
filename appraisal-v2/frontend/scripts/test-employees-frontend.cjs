@@ -56,8 +56,7 @@ check('1. Files', 'App.jsx exists', () =>
 
 check('2. App.jsx wiring', 'Imports EmployeesPage directly (not from Placeholder)', () => {
   const src = readSrc('App.jsx');
-  return src.includes("import EmployeesPage from './pages/EmployeesPage'") ||
-         src.includes('import EmployeesPage from "./pages/EmployeesPage"');
+  return /import\s+EmployeesPage\s+from\s+['"]\.\/pages\/EmployeesPage['"]/.test(src);
 });
 
 check('2. App.jsx wiring', 'EmployeesPage is no longer imported from Placeholder', () => {
