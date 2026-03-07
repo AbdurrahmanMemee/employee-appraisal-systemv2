@@ -1,8 +1,8 @@
 // =============================================================================
-// FILE:    scripts/test-frontend-foundation.js
+// FILE:    scripts/test-frontend-foundation.cjs
 // PURPOSE: Phase 4 frontend foundation tests.
-//          Tests run from the SERVER — they verify the frontend can be built,
-//          that the dev server starts, and that the API layer connects correctly.
+//          Uses .cjs extension so Node treats it as CommonJS — required because
+//          frontend/package.json has "type":"module" which would break require().
 //
 // WHAT IS TESTED:
 //   Group 1 — File structure: all required files exist in correct locations
@@ -13,8 +13,8 @@
 //   Group 6 — Build: npm install + vite build succeeds (optional, takes ~60s)
 //
 // USAGE (from the frontend directory):
-//   node scripts/test-frontend-foundation.js            # groups 1-5 only (fast)
-//   node scripts/test-frontend-foundation.js --full     # includes build test
+//   node scripts/test-frontend-foundation.cjs            # groups 1-5 only (fast)
+//   node scripts/test-frontend-foundation.cjs --full     # includes build test
 //
 // PREREQUISITES:
 //   - Backend running on port 5001 (for group 5)
@@ -340,7 +340,7 @@ const httpPost = (url, data) => new Promise((resolve) => {
     // Login
     const login = await httpPost('http://localhost:5001/api/auth/login', {
       username: 'admin',
-      password: 'Admin@1234!'
+      password: 'Admin123!'
     });
 
     let token = null;
@@ -348,7 +348,7 @@ const httpPost = (url, data) => new Promise((resolve) => {
       ok('5b', `POST /api/auth/login → ${login.status} — admin login successful`);
       try {
         const body = JSON.parse(login.body);
-        token = body.data?.token;
+        token = body.token;
         ok('5b', `Login response contains JWT token (${token ? token.slice(0,20) + '…' : 'MISSING'})`);
       } catch {
         fail('5b', 'Login response parse', 'Could not parse JSON response');

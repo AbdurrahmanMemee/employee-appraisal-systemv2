@@ -148,6 +148,11 @@ app.get('/health', async (req, res) => {
 // API ROUTES
 // ============================================================================
 
+// Health check — used by monitoring and test scripts
+app.get('/api/health', (req, res) => {
+  res.json({ success: true, message: 'OK', timestamp: new Date().toISOString() });
+});
+
 // Public — no authentication required
 app.use('/api/auth', authRoutes);
 
