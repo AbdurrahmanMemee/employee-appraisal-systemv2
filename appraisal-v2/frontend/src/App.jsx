@@ -13,11 +13,13 @@ import useAppStore, { useUser } from './store/useAppStore';
 import AppLayout  from './components/layout/AppLayout';
 import AuthGuard  from './components/layout/AuthGuard';
 
-// Pages
+// Pages — real modules
 import LoginPage     from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import EmployeesPage from './pages/EmployeesPage';
+
+// Pages — placeholders (replaced as each module is built)
 import {
-  EmployeesPage,
   SchedulesPage,
   IncidentsPage,
   ConfigPage,
@@ -105,4 +107,3 @@ const App = () => {
 };
 
 export default App;
-
