@@ -1,8 +1,31 @@
+<<<<<<< HEAD
 node_modules/
 .env
 *.log
 build/
 dist/
 uploads/
+=======
+# appraisal-v1
+appraisal-v1/backend/node_modules/
+appraisal-v1/frontend/node_modules/
+appraisal-v1/backend/.env
+appraisal-v1/frontend/.env
+appraisal-v1/frontend/build/
+appraisal-v1/uploads/
+
+# appraisal-v2
+appraisal-v2/backend/node_modules/
+appraisal-v2/frontend/node_modules/
+appraisal-v2/backend/.env
+appraisal-v2/frontend/.env
+appraisal-v2/frontend/.env.local
+appraisal-v2/backend/uploads/
+appraisal-v2/frontend/dist/
+appraisal-v2/frontend/build/
+
+# Logs and OS
+*.log
+>>>>>>> c124706 (Restructure: v1 subfolder + v2 rebuild added (Phase 3 complete))
 .DS_Store
 Thumbs.db

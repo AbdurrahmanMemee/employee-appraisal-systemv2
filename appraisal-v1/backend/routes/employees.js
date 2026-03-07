@@ -126,8 +126,13 @@ router.post('/', [
 ], asyncHandler(async (req, res) => {
   const {
     employee_number, employee_name, employee_surname, employee_id,
+<<<<<<< HEAD
     department, job_description, manager, email, phone, address,
     start_date, emergency_contact, emergency_phone
+=======
+    department, job_description, manager, email, phone,
+    start_date
+>>>>>>> c124706 (Restructure: v1 subfolder + v2 rebuild added (Phase 3 complete))
   } = req.body;
 
   // FIX: ensure employee_number is stored as int
@@ -136,17 +141,26 @@ router.post('/', [
   await dbUtils.query(
     `INSERT INTO employees
        (employee_number, employee_name, employee_surname, employee_id,
+<<<<<<< HEAD
         department, job_description, manager, email, phone, address, start_date,
         emergency_contact, emergency_phone)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+=======
+        department, job_description, manager, email, phone, start_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+>>>>>>> c124706 (Restructure: v1 subfolder + v2 rebuild added (Phase 3 complete))
     [empNum, employee_name, employee_surname, employee_id,
      department, job_description, manager,
      email             || null,
      phone             || null,
+<<<<<<< HEAD
      address           || null,
      start_date        || null,
      emergency_contact || null,
      emergency_phone   || null]
+=======
+     start_date        || null]
+>>>>>>> c124706 (Restructure: v1 subfolder + v2 rebuild added (Phase 3 complete))
   );
 
   const { rows } = await dbUtils.query(
@@ -176,8 +190,13 @@ router.put('/:id', [...employeeValidation.slice(0, -1), handleValidationErrors],
 
   const {
     employee_name, employee_surname, employee_id, department,
+<<<<<<< HEAD
     job_description, manager, email, phone, address, start_date,
     emergency_contact, emergency_phone, is_active
+=======
+    job_description, manager, email, phone, start_date,
+    is_active
+>>>>>>> c124706 (Restructure: v1 subfolder + v2 rebuild added (Phase 3 complete))
   } = req.body;
 
   // FIX: is_active converted explicitly to 1/0 integer, not boolean/string
@@ -195,10 +214,14 @@ router.put('/:id', [...employeeValidation.slice(0, -1), handleValidationErrors],
        manager            = ?,
        email              = ?,
        phone              = ?,
+<<<<<<< HEAD
        address            = ?,
        start_date         = ?,
        emergency_contact  = ?,
        emergency_phone    = ?,
+=======
+       start_date         = ?,
+>>>>>>> c124706 (Restructure: v1 subfolder + v2 rebuild added (Phase 3 complete))
        is_active          = COALESCE(?, is_active)
      WHERE employee_number = ?`,
     [
@@ -206,10 +229,14 @@ router.put('/:id', [...employeeValidation.slice(0, -1), handleValidationErrors],
       department, job_description, manager,
       email             || null,
       phone             || null,
+<<<<<<< HEAD
       address           || null,
       start_date        || null,
       emergency_contact || null,
       emergency_phone   || null,
+=======
+      start_date        || null,
+>>>>>>> c124706 (Restructure: v1 subfolder + v2 rebuild added (Phase 3 complete))
       isActiveInt,
       employeeId
     ]
