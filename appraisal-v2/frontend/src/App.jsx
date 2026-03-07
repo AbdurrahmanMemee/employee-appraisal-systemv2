@@ -14,9 +14,9 @@ import AppLayout  from './components/layout/AppLayout';
 import AuthGuard  from './components/layout/AuthGuard';
 
 // Pages
-import LoginPage from './pages/LoginPage';
+import LoginPage     from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
 import {
-  DashboardPage,
   EmployeesPage,
   SchedulesPage,
   IncidentsPage,
@@ -105,3 +105,4 @@ const App = () => {
 };
 
 export default App;
+
