@@ -1,0 +1,32 @@
+/* =============================================================================
+   FILE:    src/index.css
+   PURPOSE: Global styles. Tailwind base + a small set of custom utilities.
+   ============================================================================= */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Smooth scrolling everywhere */
+html { scroll-behavior: smooth; }
+
+/* Ensure the app fills the viewport */
+#root { min-height: 100vh; }
+
+/* Custom scrollbar (optional, looks nicer on Chrome/Edge) */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* Focus ring — accessible but not ugly */
+:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Print: hide nav, show content only */
+@media print {
+  nav, aside, button, .no-print { display: none !important; }
+  body { background: white; }
+}
