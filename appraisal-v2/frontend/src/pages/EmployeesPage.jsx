@@ -531,12 +531,12 @@ const DetailView = ({ employeeId, onBack, onEdit, onDeactivated }) => {
 // =============================================================================
 
 const VALIDATION_RULES = {
-  first_name:       [{ type: 'required' }, { type: 'maxLength', value: 50 }],
-  last_name:        [{ type: 'required' }, { type: 'maxLength', value: 50 }],
-  employee_number:  [{ type: 'required' }, { type: 'maxLength', value: 20 }],
-  email:            [{ type: 'email' }],
-  id_number:        [{ type: 'maxLength', value: 20 }],
-  phone:            [{ type: 'maxLength', value: 20 }],
+  first_name:       [{ required: true }, { maxLength: 50 }],
+  last_name:        [{ required: true }, { maxLength: 50 }],
+  employee_number:  [{ required: true }, { maxLength: 20 }],
+  email:            [{ email: true }],
+  id_number:        [{ maxLength: 20 }],
+  phone:            [{ maxLength: 20 }],
 };
 
 const EMPTY_FORM = {
@@ -598,7 +598,7 @@ const FormView = ({ employee, onBack, onSaved }) => {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState('');
 
-  const { errors, validateAll, validateField } = useFormValidation(VALIDATION_RULES);
+  const { errors, validate, validateField } = useFormValidation(VALIDATION_RULES);
 
   const set = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -606,7 +606,7 @@ const FormView = ({ employee, onBack, onSaved }) => {
   };
 
   const handleSubmit = async () => {
-    const valid = validateAll(form);
+    const valid = validate(form);
     if (!valid) return;
 
     setSubmitting(true);
@@ -760,6 +760,11 @@ const FormView = ({ employee, onBack, onSaved }) => {
               <option value="">No manager assigned</option>
               {managers
                 .filter((m) => m.id !== employee?.id) // can't manage yourself
+                // TODO: confirm exact manager-eligible titles with client before go-live
+                .filter((m) => {
+                  const MANAGER_TITLES = ['manager', 'director', 'lead', 'head', 'supervisor', 'executive']; 
+                  return MANAGER_TITLES.some((t) => m.job_title?.toLowerCase().includes(t));
+                })
                 .map((m) => (
                   <option key={m.id} value={m.id}>{m.full_name}</option>
                 ))}

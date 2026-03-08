@@ -7,7 +7,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  FileText, LayoutDashboard, Users, CalendarDays,
+  FileText, LayoutDashboard, Users, CalendarDays, MessageSquare, ClipboardList,
   AlertTriangle, Settings, LogOut, RefreshCw, X,
   CheckCircle, AlertCircle, Info, XCircle,
 } from 'lucide-react';
@@ -20,6 +20,8 @@ import { Spinner } from '../ui';
 const NAV_ITEMS = [
   { path: '/dashboard',   label: 'Dashboard',    icon: LayoutDashboard, roles: ['admin','manager','employee'] },
   { path: '/employees',   label: 'Employees',    icon: Users,           roles: ['admin','manager','employee'] },
+  { path: '/meetings',    label: 'Meetings',     icon: MessageSquare,   roles: ['admin','manager','employee'] },
+  { path: '/appraisals',  label: 'Appraisals',   icon: ClipboardList,   roles: ['admin','manager','employee'] },
   { path: '/schedules',   label: 'Schedule',     icon: CalendarDays,    roles: ['admin','manager','employee'] },
   { path: '/incidents',   label: 'Incidents',    icon: AlertTriangle,   roles: ['admin','manager'] },
   { path: '/config',      label: 'Settings',     icon: Settings,        roles: ['admin'] },

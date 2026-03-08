@@ -635,10 +635,10 @@ const LastMeetingLink = ({ employeeId, currentMeetingId, onView }) => {
 // =============================================================================
 
 const VALIDATION_RULES = {
-  employee_id:         [{ type: 'required' }],
-  meeting_date:        [{ type: 'required' }, { type: 'date' }],
-  meeting_type:        [{ type: 'required' }],
-  meeting_conclusion:  [{ type: 'required' }],
+  employee_id:         [{ required: true }],
+  meeting_date:        [{ required: true }, { date: true }],
+  meeting_type:        [{ required: true }],
+  meeting_conclusion:  [{ required: true }],
 };
 
 const EMPTY_FORM = {
@@ -684,7 +684,7 @@ const FormView = ({ meeting, onBack, onSaved, onViewMeeting }) => {
   const [serverError,  setServerError]  = useState('');
   const fileInputRef = useRef(null);
 
-  const { errors, validateAll, validateField } = useFormValidation(VALIDATION_RULES);
+  const { errors, validate, validateField } = useFormValidation(VALIDATION_RULES);
 
   const set = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -692,7 +692,7 @@ const FormView = ({ meeting, onBack, onSaved, onViewMeeting }) => {
   };
 
   const handleSubmit = async () => {
-    const valid = validateAll(form);
+    const valid = validate(form);
     if (!valid) return;
 
     setSubmitting(true);
