@@ -1,26 +1,29 @@
 #!/bin/bash
+set -e  # Stop immediately if a command fails
 
-# Check if a feature name was provided
 if [ -z "$1" ]; then
-  echo "Usage: ./deploy.sh \"Feature Name Here\""
+  echo "Usage: ./deploy.sh \"Feature Description\""
   exit 1
 fi
 
-FEATURE_NAME=$1
-BRANCH_NAME="feature-$FEATURE_NAME"
+# Sanitize the name: replace spaces and '+' with '-' 
+CLEAN_NAME=$(echo "$1" | sed 's/[[:space:]]/ /g' | tr -s ' ' | tr ' +' '-' | tr -cd '[:alnum:]-')
+BRANCH_NAME="feature-$CLEAN_NAME"
 
-echo "--- Starting process for: $FEATURE_NAME ---"
+echo "--- Starting process for: $1 ---"
 
-# 1. Ensure we are up to date
+# Switch to main and make sure it's clean
 git checkout main
 git pull origin main
 
-# 2. Create and switch to new branch
+# Create the new branch with the cleaned name
 git checkout -b "$BRANCH_NAME"
 
-# 3. Add, commit, and push
+# Add and commit
 git add .
-git commit -m "$FEATURE_NAME"
+git commit -m "$1"
+
+# Push the new branch
 git push -u origin "$BRANCH_NAME"
 
-echo "--- Done! Your branch '$BRANCH_NAME' is now on GitHub. ---"
+echo "--- SUCCESS! Your branch '$BRANCH_NAME' is now on GitHub. ---"

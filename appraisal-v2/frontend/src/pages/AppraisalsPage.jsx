@@ -75,19 +75,22 @@ const nextYear = () => {
 };
 
 // Render star rating (read-only)
-const StarRating = ({ value, max = 5 }) => {
-  const pct = Math.round((parseFloat(value) / max) * 100);
+const StarRating = ({ value, max = 5, dark = false }) => {
   return (
     <div className="flex items-center gap-1.5">
       <div className="flex">
         {[1, 2, 3, 4, 5].map(i => (
           <Star
             key={i}
-            className={`w-4 h-4 ${i <= Math.round(value) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200 fill-gray-200'}`}
+            className={`w-4 h-4 ${
+              i <= Math.round(value)
+                ? dark ? 'text-white fill-white' : 'text-yellow-400 fill-yellow-400'
+                : dark ? 'text-blue-400 fill-blue-400' : 'text-gray-200 fill-gray-200'
+            }`}
           />
         ))}
       </div>
-      <span className="text-sm font-semibold text-gray-700">{parseFloat(value).toFixed(2)}</span>
+      {!dark && <span className="text-sm font-semibold text-gray-700">{parseFloat(value).toFixed(2)}</span>}
     </div>
   );
 };
@@ -758,14 +761,52 @@ const PrintView = ({ appraisal }) => (
 // SECTION EDITOR — used inside FormView
 // =============================================================================
 
-const DEFAULT_SECTION = { section_name: '', rating: '', weight: '', previous_rating: null, comments: '' };
+const DEFAULT_SECTION = { section_name: '', rating: '', weight: '', previous_rating: null, comments: '', custom: false };
 
-const SectionEditor = ({ sections, onChange }) => {
+// SectionEditor
+// Props:
+//   sections  — current section array
+//   onChange  — callback with updated array
+//   templates — appraisal_sections from useConfig() for the name dropdown
+//
+// Design:
+//   - Section name is a dropdown populated from templates
+//   - Last option in dropdown is "Custom…" which unlocks a free-text input
+//   - previous_rating is READ-ONLY — auto-filled from last completed appraisal
+//     (injected by FormView when employee is selected)
+//   - rating clamped 0–5 on blur so user gets immediate feedback
+const SectionEditor = ({ sections, onChange, templates = [] }) => {
   const addSection = () => onChange([...sections, { ...DEFAULT_SECTION }]);
 
   const updateSection = (index, field, value) => {
-    const updated = sections.map((s, i) => i === index ? { ...s, [field]: value } : s);
+    const updated = sections.map((s, i) => {
+      if (i !== index) return s;
+      // When picking from dropdown, auto-fill weight from template default
+      if (field === 'section_name' && value !== '__custom__') {
+        const tpl = templates.find(t => t.name === value);
+        return {
+          ...s,
+          section_name: value,
+          weight: tpl ? String(tpl.default_weight) : s.weight,
+          custom: false,
+        };
+      }
+      // "Custom…" selected — clear name and mark as free-text
+      if (field === 'section_name' && value === '__custom__') {
+        return { ...s, section_name: '', custom: true };
+      }
+      return { ...s, [field]: value };
+    });
     onChange(updated);
+  };
+
+  // Clamp rating to 0–5 on blur
+  const handleRatingBlur = (index, value) => {
+    const n = parseFloat(value);
+    if (!isNaN(n)) {
+      const clamped = Math.min(5, Math.max(0, n));
+      if (clamped !== n) updateSection(index, 'rating', String(clamped));
+    }
   };
 
   const removeSection = (index) => {
@@ -777,20 +818,23 @@ const SectionEditor = ({ sections, onChange }) => {
 
   return (
     <div className="space-y-3">
-      {/* Weight summary */}
-      <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg
-        ${totalWeight === 0   ? 'bg-gray-50 text-gray-500' :
-          !weightOk           ? 'bg-red-50 text-red-700 border border-red-200' :
-          totalWeight < 99.9  ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
-                                'bg-green-50 text-green-700 border border-green-200'}`}>
-        <Info className="w-4 h-4 flex-shrink-0" />
-        <span>
-          Total weight: <strong>{totalWeight.toFixed(1)}%</strong>
-          {totalWeight === 0  ? ' — weights optional (simple average will be used)' :
-           !weightOk          ? ' — must not exceed 100%' :
-           totalWeight < 99.9 ? ' — weights do not sum to 100% (that is allowed)' :
-                                ' — weights balanced ✓'}
-        </span>
+      {/* Weight summary — FIXED to top of viewport so always visible while scrolling */}
+      <div className={`fixed top-28 left-0 right-0 z-40 px-4 sm:px-6 lg:px-8
+        transition-opacity duration-200 ${totalWeight === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <div className="max-w-7xl mx-auto">
+          <div className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg shadow-md
+            ${!weightOk           ? 'bg-red-50 text-red-700 border border-red-200' :
+              totalWeight < 99.9  ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
+                                    'bg-green-50 text-green-700 border border-green-200'}`}>
+            <Info className="w-4 h-4 flex-shrink-0" />
+            <span>
+              Total weight: <strong>{totalWeight.toFixed(1)}%</strong>
+              {!weightOk          ? ' — must not exceed 100%' :
+               totalWeight < 99.9 ? ' — weights do not sum to 100% (that is allowed)' :
+                                    ' — weights balanced ✓'}
+            </span>
+          </div>
+        </div>
       </div>
 
       {sections.length === 0 && (
@@ -807,13 +851,32 @@ const SectionEditor = ({ sections, onChange }) => {
               justify-center text-xs font-bold flex-shrink-0">
               {index + 1}
             </span>
-            <input
-              value={s.section_name}
-              onChange={e => updateSection(index, 'section_name', e.target.value)}
-              placeholder="Section name (e.g. Communication, Technical Skills)"
-              className="flex-1 text-sm font-medium bg-transparent border-none outline-none
-                placeholder-gray-400 text-gray-800"
-            />
+
+            {/* Name: dropdown or free-text if custom */}
+            {s.custom ? (
+              <input
+                value={s.section_name}
+                onChange={e => updateSection(index, 'section_name', e.target.value)}
+                placeholder="Enter custom section name…"
+                className="flex-1 text-sm font-medium bg-white border border-blue-300 rounded-lg
+                  px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+              />
+            ) : (
+              <select
+                value={s.section_name || ''}
+                onChange={e => updateSection(index, 'section_name', e.target.value)}
+                className="flex-1 text-sm font-medium bg-transparent border border-gray-200
+                  rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500
+                  text-gray-800"
+              >
+                <option value="">Select section…</option>
+                {templates.map(t => (
+                  <option key={t.id || t.name} value={t.name}>{t.name}</option>
+                ))}
+                <option value="__custom__">Custom…</option>
+              </select>
+            )}
+
             <button
               type="button"
               onClick={() => removeSection(index)}
@@ -824,7 +887,7 @@ const SectionEditor = ({ sections, onChange }) => {
             </button>
           </div>
 
-          {/* Rating + weight + previous */}
+          {/* Rating + weight + previous (read-only) */}
           <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <label className="text-xs font-medium text-gray-500 mb-1 block">
@@ -835,6 +898,7 @@ const SectionEditor = ({ sections, onChange }) => {
                 min="0" max="5" step="0.1"
                 value={s.rating}
                 onChange={e => updateSection(index, 'rating', e.target.value)}
+                onBlur={e => handleRatingBlur(index, e.target.value)}
                 placeholder="0.0"
                 className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2
                   focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -857,17 +921,23 @@ const SectionEditor = ({ sections, onChange }) => {
             <div>
               <label className="text-xs font-medium text-gray-500 mb-1 block">
                 Previous Rating
+                <span className="ml-1 text-gray-400 font-normal">(auto-filled)</span>
               </label>
-              <input
-                type="number"
-                min="0" max="5" step="0.1"
-                value={s.previous_rating ?? ''}
-                onChange={e => updateSection(index, 'previous_rating',
-                  e.target.value === '' ? null : e.target.value)}
-                placeholder="— optional"
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2
-                  focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              {s.previous_rating != null ? (
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50
+                  border border-gray-200 rounded-lg">
+                  <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400 flex-shrink-0" />
+                  <span className="text-sm font-medium text-gray-700">
+                    {parseFloat(s.previous_rating).toFixed(2)}
+                  </span>
+                  <span className="text-xs text-gray-400 ml-auto">from last appraisal</span>
+                </div>
+              ) : (
+                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg
+                  text-sm text-gray-400 italic">
+                  No previous record
+                </div>
+              )}
             </div>
           </div>
 
@@ -904,8 +974,8 @@ const SectionEditor = ({ sections, onChange }) => {
 // =============================================================================
 
 const VALIDATION_RULES = {
-  employee_id:     [{ required: true }],
-  appraisal_date:  [{ required: true }],
+  employee_id:     [{ type: 'required' }],
+  appraisal_date:  [{ type: 'required' }],
 };
 
 const EMPTY_FORM = {
@@ -919,6 +989,10 @@ const EMPTY_FORM = {
 const FormView = ({ appraisal, onBack, onSaved }) => {
   const isEdit    = !!appraisal;
   const showToast = useAppStore(s => s.showToast);
+  const config    = useConfig();
+
+  // Section templates from config — used to pre-populate and for the name dropdown
+  const templates = config?.appraisal_sections || [];
 
   const [employees, setEmployees] = useState([]);
   useEffect(() => {
@@ -938,7 +1012,9 @@ const FormView = ({ appraisal, onBack, onSaved }) => {
     };
   });
 
-  // Sections state — separate from form because it's a complex array
+  // ── Sections state ──────────────────────────────────────────────────────────
+  // Create mode: pre-populate from templates once config loads
+  // Edit mode:   use existing sections from appraisal record
   const [sections, setSections] = useState(() => {
     if (!isEdit || !appraisal.sections) return [];
     return appraisal.sections.map(s => ({
@@ -947,14 +1023,71 @@ const FormView = ({ appraisal, onBack, onSaved }) => {
       weight:          s.weight          != null ? String(s.weight)          : '',
       previous_rating: s.previous_rating != null ? String(s.previous_rating) : null,
       comments:        s.comments        || '',
+      custom:          false,
     }));
   });
+
+  // Pre-populate sections from templates when creating (runs once templates load)
+  const templatesLoaded = useRef(false);
+  useEffect(() => {
+    if (isEdit || templatesLoaded.current || templates.length === 0) return;
+    templatesLoaded.current = true;
+    setSections(templates.map(t => ({
+      section_name:    t.name,
+      rating:          '',
+      weight:          String(t.default_weight || ''),
+      previous_rating: null,
+      comments:        '',
+      custom:          false,
+    })));
+  }, [templates, isEdit]);
+
+  // ── Previous rating auto-fill ───────────────────────────────────────────────
+  // When employee is selected (create mode), fetch their last completed appraisal
+  // and inject previous_rating per section by matching section_name exactly.
+  const fetchPreviousRatings = useCallback(async (employeeId) => {
+    if (!employeeId || isEdit) return;
+    try {
+      const res = await appraisalAPI.getAll({
+        employee_id: employeeId,
+        status:      'Completed',
+        limit:       1,
+        page:        1,
+      });
+      const last = (res.data?.appraisals || [])[0];
+      if (!last) return;
+
+      // Fetch full detail to get sections
+      const detail = await appraisalAPI.getById(last.id);
+      const lastSections = detail.data?.sections || [];
+      if (lastSections.length === 0) return;
+
+      // Build lookup map: section_name → rating
+      const prevMap = {};
+      lastSections.forEach(s => {
+        prevMap[s.section_name.trim().toLowerCase()] = String(s.rating);
+      });
+
+      // Inject previous_rating into current sections where names match
+      setSections(prev => prev.map(s => ({
+        ...s,
+        previous_rating: prevMap[s.section_name.trim().toLowerCase()] ?? null,
+      })));
+    } catch {
+      // Silently ignore — previous ratings are informational only
+    }
+  }, [isEdit]);
+
+  // Trigger previous rating lookup when employee changes
+  useEffect(() => {
+    if (form.employee_id) fetchPreviousRatings(form.employee_id);
+  }, [form.employee_id, fetchPreviousRatings]);
 
   const [sectionsError, setSectionsError] = useState('');
   const [submitting,    setSubmitting]    = useState(false);
   const [serverError,   setServerError]   = useState('');
 
-  const { errors, validate, validateField } = useFormValidation(VALIDATION_RULES);
+  const { errors, validateAll, validateField } = useFormValidation(VALIDATION_RULES);
 
   const set = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -975,7 +1108,7 @@ const FormView = ({ appraisal, onBack, onSaved }) => {
   const ratingPreview = previewRating();
 
   const handleSubmit = async () => {
-    const formValid = validate(form);
+    const formValid = validateAll(form);
 
     // Validate sections
     let secError = '';
@@ -1130,19 +1263,39 @@ const FormView = ({ appraisal, onBack, onSaved }) => {
             </Select>
           </Field>
         </div>
-
-        {/* Overall rating preview */}
-        {ratingPreview !== null && (
-          <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl">
-            <Info className="w-4 h-4 text-blue-500 flex-shrink-0" />
-            <div>
-              <p className="text-xs text-blue-600 font-medium">Calculated Overall Rating (preview)</p>
-              <StarRating value={ratingPreview} />
-            </div>
-            <p className="text-xs text-blue-500 ml-auto">Server will recalculate on save</p>
-          </div>
-        )}
       </Card>
+
+      {/* Overall rating preview — FIXED to viewport so it stays visible while scrolling */}
+      {ratingPreview !== null && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <div className="flex items-center gap-4 px-5 py-3 bg-blue-600 text-white
+            rounded-xl shadow-2xl border border-blue-500">
+            <div className="flex-1">
+              <p className="text-xs font-medium text-blue-200 uppercase tracking-wide mb-0.5">
+                Overall Rating (preview)
+              </p>
+              <div className="flex items-center gap-2">
+                <StarRating value={ratingPreview ?? 0} dark />
+                <span className="text-lg font-bold">
+                  {parseFloat(ratingPreview).toFixed(2)}
+                  <span className="text-sm font-normal text-blue-300"> / 5.00</span>
+                </span>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-blue-300">Weighted average</p>
+              <p className="text-xs text-blue-300">Updates as you score</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sections error — FIXED to bottom of viewport so always visible on failed submit */}
+      {sectionsError && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg px-4">
+          <Alert type="error" message={sectionsError} onDismiss={() => setSectionsError('')} />
+        </div>
+      )}
 
       {/* Sections editor */}
       <Card>
@@ -1150,12 +1303,7 @@ const FormView = ({ appraisal, onBack, onSaved }) => {
           title="Section Ratings"
           subtitle="Add one section per competency area. Overall rating is the weighted average."
         />
-        {sectionsError && (
-          <div className="mb-4">
-            <Alert type="error" message={sectionsError} onDismiss={() => setSectionsError('')} />
-          </div>
-        )}
-        <SectionEditor sections={sections} onChange={setSections} />
+        <SectionEditor sections={sections} onChange={setSections} templates={templates} />
       </Card>
 
       {/* Actions */}

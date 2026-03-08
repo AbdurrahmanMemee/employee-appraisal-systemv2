@@ -19,11 +19,11 @@ import DashboardPage  from './pages/DashboardPage';
 import EmployeesPage  from './pages/EmployeesPage';
 import MeetingsPage   from './pages/MeetingsPage';
 import AppraisalsPage from './pages/AppraisalsPage';
+import IncidentsPage  from './pages/IncidentsPage';
 
 // Pages — placeholders (replaced as each module is built)
 import {
   SchedulesPage,
-  IncidentsPage,
   ConfigPage,
 } from './pages/Placeholder';
 
@@ -95,6 +95,7 @@ const App = () => {
       <Route path="/employees"   element={<Protected><EmployeesPage /></Protected>} />
       <Route path="/meetings"    element={<Protected><MeetingsPage /></Protected>} />
       <Route path="/appraisals"  element={<Protected><AppraisalsPage /></Protected>} />
+      <Route path="/incidents"   element={<Protected><IncidentsPage /></Protected>} />
       <Route path="/schedules"   element={<Protected><SchedulesPage /></Protected>} />
 
       {/* Protected — admin + manager only */}
