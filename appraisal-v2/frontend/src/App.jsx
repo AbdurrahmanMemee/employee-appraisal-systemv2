@@ -19,13 +19,9 @@ import DashboardPage  from './pages/DashboardPage';
 import EmployeesPage  from './pages/EmployeesPage';
 import MeetingsPage   from './pages/MeetingsPage';
 import AppraisalsPage from './pages/AppraisalsPage';
-
-// Pages — placeholders (replaced as each module is built)
-import {
-  SchedulesPage,
-  IncidentsPage,
-  ConfigPage,
-} from './pages/Placeholder';
+import IncidentsPage  from './pages/IncidentsPage';
+import SchedulesPage  from './pages/SchedulesPage';
+import ConfigPage     from './pages/ConfigPage';
 
 // Error boundary — catches unexpected render crashes
 class ErrorBoundary extends React.Component {
@@ -95,6 +91,7 @@ const App = () => {
       <Route path="/employees"   element={<Protected><EmployeesPage /></Protected>} />
       <Route path="/meetings"    element={<Protected><MeetingsPage /></Protected>} />
       <Route path="/appraisals"  element={<Protected><AppraisalsPage /></Protected>} />
+      <Route path="/incidents"   element={<Protected><IncidentsPage /></Protected>} />
       <Route path="/schedules"   element={<Protected><SchedulesPage /></Protected>} />
 
       {/* Protected — admin + manager only */}
