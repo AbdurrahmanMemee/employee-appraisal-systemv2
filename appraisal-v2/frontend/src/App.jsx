@@ -20,7 +20,7 @@ import EmployeesPage  from './pages/EmployeesPage';
 import MeetingsPage   from './pages/MeetingsPage';
 import AppraisalsPage from './pages/AppraisalsPage';
 import IncidentsPage  from './pages/IncidentsPage';
-import SchedulesPage  from './pages/SchedulesPage';
+import { SchedulesPage } from './pages/Placeholder';
 import ConfigPage     from './pages/ConfigPage';
 
 // Error boundary — catches unexpected render crashes

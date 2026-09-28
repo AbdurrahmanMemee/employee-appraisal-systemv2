@@ -305,7 +305,7 @@ const ListView = ({ onOpenDetail, onOpenCreate }) => {
 
                     {/* Department */}
                     <td className="px-4 py-3 text-sm text-gray-600">
-                      {emp.department_name || '—'}
+                      {emp.department_name || emp.department || '—'}
                     </td>
 
                     {/* Status */}
@@ -439,7 +439,7 @@ const DetailView = ({ employeeId, onBack, onEdit, onDeactivated }) => {
               <StatusBadge status={isActive ? 'Active' : 'Inactive'} />
             </div>
             <p className="text-sm text-gray-500 mt-0.5">
-              {employee.job_title || 'No job title'} · {employee.department_name || 'No department'}
+              {employee.job_title || 'No job title'} · {employee.department_name || employee.department || 'No department'}
             </p>
             {employee.average_rating != null && (
               <div className="flex items-center gap-1.5 mt-2">
@@ -497,7 +497,7 @@ const DetailView = ({ employeeId, onBack, onEdit, onDeactivated }) => {
         <Card>
           <CardHeader title="Role & Reporting" />
           <InfoRow icon={Briefcase}  label="Job Title"   value={employee.job_title} />
-          <InfoRow icon={Building2}  label="Department"  value={employee.department_name} />
+          <InfoRow icon={Building2}  label="Department"  value={employee.department_name || employee.department} />
           <InfoRow icon={User}       label="Manager"     value={employee.manager_name} />
           <InfoRow icon={Calendar}   label="Last Meeting"    value={formatDate(employee.last_meeting_date)} />
           <InfoRow icon={Calendar}   label="Last Appraisal"  value={formatDate(employee.last_appraisal_date)} />
@@ -533,7 +533,16 @@ const DetailView = ({ employeeId, onBack, onEdit, onDeactivated }) => {
 const VALIDATION_RULES = {
   first_name:       [{ required: true }, { maxLength: 50 }],
   last_name:        [{ required: true }, { maxLength: 50 }],
-  employee_number:  [{ required: true }, { maxLength: 20 }],
+  employee_number: [
+    { required: true },
+    {
+      custom: (value) =>
+        !value || /^[0-9]+$/.test(String(value))
+          ? null
+          : 'Employee number must contain numbers only.',
+    },
+    { min: 1, message: 'Employee number must be greater than zero.' },
+  ],
   email:            [{ email: true }],
   id_number:        [{ maxLength: 20 }],
   phone:            [{ maxLength: 20 }],
@@ -614,6 +623,18 @@ const FormView = ({ employee, onBack, onSaved }) => {
 
     // Build payload — omit empty optional strings to keep the body clean
     const payload = { ...form };
+
+    // The backend stores both the lookup ID and display name.
+    const selectedDepartment = departments.find(
+      (item) => String(item.id) === String(form.department_id)
+    );
+    const selectedJobTitle = jobTitles.find(
+      (item) => String(item.id) === String(form.job_title_id)
+    );
+
+    payload.department = selectedDepartment?.name || employee?.department || '';
+    payload.job_title = selectedJobTitle?.name || employee?.job_title || '';
+
     ['email', 'phone', 'id_number', 'notes'].forEach((k) => {
       if (!payload[k]) delete payload[k];
     });
@@ -685,11 +706,14 @@ const FormView = ({ employee, onBack, onSaved }) => {
         {/* ── Employee number + ID ── */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <Field label="Employee Number" required error={errors.employee_number}
-            hint="Unique identifier e.g. EMP-001">
+            hint="Positive whole number, for example 1001">
             <Input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={form.employee_number}
               onChange={(e) => set('employee_number', e.target.value)}
-              placeholder="EMP-001"
+              placeholder="1001"
               error={errors.employee_number}
             />
           </Field>

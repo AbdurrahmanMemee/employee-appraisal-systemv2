@@ -205,7 +205,7 @@ function DepartmentStats({ items, loading, error }) {
           {items.map((row, i) => (
             <tr key={i} className="hover:bg-gray-50 transition-colors">
               <td className="py-3 pr-4 font-medium text-gray-800">{row.department || '—'}</td>
-              <td className="py-3 pr-4 text-right text-gray-600">{row.total_employees ?? '—'}</td>
+              <td className="py-3 pr-4 text-right text-gray-600">{row.headcount ?? '—'}</td>
               <td className="py-3 pr-4 text-right">
                 {row.avg_rating != null
                   ? <span className="font-semibold text-gray-700">{Number(row.avg_rating).toFixed(1)}</span>
@@ -213,14 +213,14 @@ function DepartmentStats({ items, loading, error }) {
                 }
               </td>
               <td className="py-3 pr-4 text-right">
-                {row.overdue_count > 0
-                  ? <span className="font-semibold text-red-600">{row.overdue_count}</span>
+                {row.overdue_appraisals > 0
+                  ? <span className="font-semibold text-red-600">{row.overdue_appraisals}</span>
                   : <span className="text-gray-400">0</span>
                 }
               </td>
               <td className="py-3 text-right">
-                {row.incident_count > 0
-                  ? <span className="font-semibold text-yellow-600">{row.incident_count}</span>
+                {row.high_incidents > 0
+                  ? <span className="font-semibold text-yellow-600">{row.high_incidents}</span>
                   : <span className="text-gray-400">0</span>
                 }
               </td>
