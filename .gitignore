@@ -209,3 +209,4 @@ venv/
 # Canonical repository source remains /appraisal-v2
 # -----------------------------------------------------------------------------
 /appraisal-v2-dev/
+*.backup-*

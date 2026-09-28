@@ -121,36 +121,31 @@ if (process.env.NODE_ENV === 'development') {
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ============================================================================
-// HEALTH CHECK — simple endpoint to confirm the server is running
+// API ROUTES
 // ============================================================================
 
-app.get('/health', async (req, res) => {
+// Health check — used by Docker, monitoring, and test scripts.
+// Returns 503 when the API cannot reach MySQL.
+app.get('/api/health', async (req, res) => {
   try {
-    // Test database connection as part of health check
     await pool.execute('SELECT 1');
+
     res.json({
       success:     true,
-      message:     'Server is healthy',
+      message:     'API and database are healthy',
       timestamp:   new Date().toISOString(),
       environment: process.env.NODE_ENV,
       version:     '2.0.0',
     });
   } catch (error) {
+    console.error('Health check failed:', error.message);
+
     res.status(503).json({
-      success:  false,
-      message:  'Database unavailable',
-      error:    error.message,
+      success:   false,
+      message:   'Service unavailable',
+      timestamp: new Date().toISOString(),
     });
   }
-});
-
-// ============================================================================
-// API ROUTES
-// ============================================================================
-
-// Health check — used by monitoring and test scripts
-app.get('/api/health', (req, res) => {
-  res.json({ success: true, message: 'OK', timestamp: new Date().toISOString() });
 });
 
 // Public — no authentication required
@@ -202,7 +197,7 @@ const startServer = async () => {
     console.log('========================================');
     console.log(` Environment : ${process.env.NODE_ENV || 'development'}`);
     console.log(` Port        : ${PORT}`);
-    console.log(` Health      : http://localhost:${PORT}/health`);
+    console.log(` Health      : http://localhost:${PORT}/api/health`);
     console.log(` API         : http://localhost:${PORT}/api`);
     console.log('========================================');
     console.log('');

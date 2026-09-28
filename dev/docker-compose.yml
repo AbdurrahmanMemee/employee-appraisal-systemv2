@@ -3,6 +3,12 @@ services:
     image: mysql:8.4
     container_name: eas-dev-mysql
     restart: unless-stopped
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
     env_file:
       - .env
     environment:
@@ -28,6 +34,12 @@ services:
       dockerfile: Dockerfile
     container_name: eas-dev-backend
     restart: unless-stopped
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
     env_file:
       - .env
     environment:
@@ -61,6 +73,12 @@ services:
       dockerfile: Dockerfile
     container_name: eas-dev-frontend
     restart: unless-stopped
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
     ports:
       - "8080:80"
     volumes:
