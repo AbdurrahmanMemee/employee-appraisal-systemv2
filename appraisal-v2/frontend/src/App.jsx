@@ -20,7 +20,7 @@ import EmployeesPage  from './pages/EmployeesPage';
 import MeetingsPage   from './pages/MeetingsPage';
 import AppraisalsPage from './pages/AppraisalsPage';
 import IncidentsPage  from './pages/IncidentsPage';
-import { SchedulesPage } from './pages/Placeholder';
+import SchedulesPage  from './pages/SchedulesPage';
 import ConfigPage     from './pages/ConfigPage';
 
 // Error boundary — catches unexpected render crashes
@@ -94,8 +94,6 @@ const App = () => {
       <Route path="/incidents"   element={<Protected><IncidentsPage /></Protected>} />
       <Route path="/schedules"   element={<Protected><SchedulesPage /></Protected>} />
 
-      {/* Protected — admin + manager only */}
-      <Route path="/incidents"  element={<Protected requiredRole="manager"><IncidentsPage /></Protected>} />
 
       {/* Protected — admin only */}
       <Route path="/config"     element={<Protected requiredRole="admin"><ConfigPage /></Protected>} />

@@ -14,6 +14,7 @@ const VARIANTS = {
   primary:   'bg-blue-600 hover:bg-blue-700 text-white shadow-sm',
   secondary: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-sm',
   danger:    'bg-red-600 hover:bg-red-700 text-white shadow-sm',
+  warning:   'bg-yellow-500 hover:bg-yellow-600 text-white shadow-sm',
   ghost:     'hover:bg-gray-100 text-gray-600',
   success:   'bg-green-600 hover:bg-green-700 text-white shadow-sm',
 };

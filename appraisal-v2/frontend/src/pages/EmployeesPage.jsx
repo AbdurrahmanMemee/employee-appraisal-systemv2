@@ -130,7 +130,12 @@ const ListView = ({ onOpenDetail, onOpenCreate }) => {
       };
       if (search.trim())   params.search     = search.trim();
       if (deptFilter)      params.department = deptFilter;
-      if (statusFilter)    params.status     = statusFilter;
+      params.active =
+        statusFilter === 'active'
+          ? 'true'
+          : statusFilter === 'inactive'
+          ? 'false'
+          : 'all';
 
       const res = await employeeAPI.getAll(params);
       setData(res.data ?? res);
@@ -574,7 +579,7 @@ const FormView = ({ employee, onBack, onSaved }) => {
 
   // Fetch active employees to use as manager options
   useEffect(() => {
-    employeeAPI.getAll({ status: 'active', limit: 200 })
+    employeeAPI.getAll({ active: 'true', limit: 200 })
       .then((res) => {
         const list = res.data?.employees || res.data || res.employees || [];
         setManagers(list);

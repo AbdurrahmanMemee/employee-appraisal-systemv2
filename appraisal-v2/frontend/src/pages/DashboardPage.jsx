@@ -268,13 +268,13 @@ export default function DashboardPage() {
       .finally(() => setStatsLoading(false));
 
     // Upcoming appraisals (next 60 days)
-    dashboardAPI.getUpcoming({ days: 60 })
+    dashboardAPI.getUpcoming(60)
       .then(res  => setUpcoming(res?.data || []))
       .catch(err => setUpcomingError(err.response?.data?.message || 'Failed to load upcoming'))
       .finally(() => setUpcomingLoading(false));
 
     // Recent activity (last 20 events)
-    dashboardAPI.getRecentActivity({ limit: 20 })
+    dashboardAPI.getRecentActivity(20)
       .then(res  => setActivity(res?.data || []))
       .catch(err => setActivityError(err.response?.data?.message || 'Failed to load activity'))
       .finally(() => setActivityLoading(false));
@@ -341,7 +341,7 @@ export default function DashboardPage() {
         />
         <StatCard
           label="Due in 30 Days"
-          value={statsLoading ? '…' : stats?.due_soon ?? '—'}
+          value={statsLoading ? '…' : stats?.upcoming_appraisals_30d ?? '—'}
           sub="Upcoming appraisals"
           icon="📅"
           accent="yellow"

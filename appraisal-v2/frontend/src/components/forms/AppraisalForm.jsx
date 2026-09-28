@@ -36,7 +36,7 @@ import {
 } from '../ui';
 import useAppStore from '../../store/useAppStore';
 import useFormValidation from '../../hooks/useFormValidation';
-import { appraisalAPI, employeeAPI } from '../../services/api';
+import { appraisalAPI, employeeAPI, configAPI } from '../../services/api';
 
 // ─── HELPER FUNCTIONS ──────────────────────────────────────────────────────
 
@@ -392,12 +392,71 @@ export default function AppraisalForm({ appraisal, onBack, onSaved }) {
 
   // ── UI state ───────────────────────────────────────────────────────────
   const [sectionsError, setSectionsError] = useState('');
+  const [loadingSections, setLoadingSections] = useState(!isEdit);
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState('');
 
   const { errors, validate, validateField } = useFormValidation(
     VALIDATION_RULES
   );
+
+  // Load active section templates only when creating a new appraisal.
+  // Existing appraisals retain their saved section names and weights.
+  useEffect(() => {
+    if (isEdit) {
+      setLoadingSections(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadDefaultSections = async () => {
+      setLoadingSections(true);
+      setSectionsError('');
+
+      try {
+        const res = await configAPI.getCategory('appraisal_sections');
+        const templates = Array.isArray(res?.data) ? res.data : [];
+
+        if (cancelled) return;
+
+        const activeTemplates = templates
+          .filter((template) =>
+            template.is_active === true ||
+            template.is_active === 1 ||
+            template.is_active === '1'
+          )
+          .map((template) => ({
+            section_name: template.name || '',
+            rating: '',
+            weight:
+              template.default_weight != null
+                ? String(template.default_weight)
+                : '',
+            previous_rating: null,
+            comments: '',
+          }));
+
+        setSections(activeTemplates);
+      } catch (err) {
+        if (!cancelled) {
+          setSectionsError(
+            err.message || 'Unable to load appraisal section templates.'
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingSections(false);
+        }
+      }
+    };
+
+    loadDefaultSections();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit]);
 
   // ── Event handlers ─────────────────────────────────────────────────────
 
@@ -454,6 +513,11 @@ export default function AppraisalForm({ appraisal, onBack, onSaved }) {
    * Builds payload without overall_rating (server calculates it)
    */
   const handleSubmit = async () => {
+    if (loadingSections) {
+      setSectionsError('Please wait while appraisal sections are loading.');
+      return;
+    }
+
     const formValid = validate(form);
 
     // ── Validate sections ──
@@ -692,7 +756,13 @@ export default function AppraisalForm({ appraisal, onBack, onSaved }) {
             />
           </div>
         )}
-        <SectionEditor sections={sections} onChange={setSections} />
+        {loadingSections ? (
+          <div className="py-8 text-center text-sm text-gray-500">
+            Loading configured appraisal sections...
+          </div>
+        ) : (
+          <SectionEditor sections={sections} onChange={setSections} />
+        )}
       </Card>
 
       {/* ── Action Buttons ── */}
@@ -705,8 +775,13 @@ export default function AppraisalForm({ appraisal, onBack, onSaved }) {
             variant="primary"
             onClick={handleSubmit}
             loading={submitting}
+            disabled={submitting || loadingSections}
           >
-            {isEdit ? 'Save Changes' : 'Save Appraisal'}
+            {loadingSections
+              ? 'Loading Sections...'
+              : isEdit
+              ? 'Save Changes'
+              : 'Save Appraisal'}
           </Button>
         </div>
       </Card>

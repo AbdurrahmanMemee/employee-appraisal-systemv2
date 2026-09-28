@@ -195,9 +195,10 @@ export const scheduleAPI = {
 export const configAPI = {
   getAll:     ()             => call(() => api.get('/config')).then(r => r.data),
   getCategory: (category)   => call(() => api.get(`/config/${category}`)).then(r => r.data),
-  create:  (category, name) => call(() => api.post(`/config/${category}`, { name })).then(r => r.data),
-  update:  (category, id, name) =>
-    call(() => api.put(`/config/${category}/${id}`, { name })).then(r => r.data),
+  create: (category, data) =>
+    call(() => api.post(`/config/${category}`, data)).then((r) => r.data),
+  update: (category, id, data) =>
+    call(() => api.put(`/config/${category}/${id}`, data)).then((r) => r.data),
   deactivate: (category, id) =>
     call(() => api.delete(`/config/${category}/${id}`)).then(r => r.data),
   restore: (category, id) =>

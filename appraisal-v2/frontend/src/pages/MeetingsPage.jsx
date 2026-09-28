@@ -532,7 +532,7 @@ const DetailView = ({ meetingId, onBack, onEdit, onDeleted }) => {
                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Attachment</span>
               </div>
               <a
-                href={`/uploads/${meeting.pdf_attachment_path}`}
+                href={meeting.pdf_attachment_path}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
