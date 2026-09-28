@@ -1,31 +1,211 @@
-<<<<<<< HEAD
-node_modules/
+# =============================================================================
+# EAS v2 - Root .gitignore
+# Applies to development and production source trees under /opt/eas-v2
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Secrets and environment configuration
+# -----------------------------------------------------------------------------
 .env
-*.log
-build/
+.env.*
+**/.env
+**/.env.*
+
+# Allow sanitised examples/templates to be committed.
+!.env.example
+!**/.env.example
+!.env.template
+!**/.env.template
+!*.env.sanitised
+!**/*_env_sanitised.txt
+
+# Private keys, certificates and credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.crt
+*.cer
+*.csr
+
+# -----------------------------------------------------------------------------
+# Node.js dependencies and package-manager caches
+# -----------------------------------------------------------------------------
+node_modules/
+**/node_modules/
+
+.npm/
+**/.npm/
+.yarn/
+**/.yarn/
+.pnpm-store/
+**/.pnpm-store/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Keep package lock files tracked for reproducible Docker builds.
+!package-lock.json
+!**/package-lock.json
+
+# -----------------------------------------------------------------------------
+# Frontend and backend generated output
+# -----------------------------------------------------------------------------
 dist/
+**/dist/
+build/
+**/build/
+coverage/
+**/coverage/
+.nyc_output/
+**/.nyc_output/
+
+.vite/
+**/.vite/
+.cache/
+**/.cache/
+.eslintcache
+**/.eslintcache
+
+# -----------------------------------------------------------------------------
+# Runtime uploads and generated attachments
+# -----------------------------------------------------------------------------
 uploads/
-=======
-# appraisal-v1
-appraisal-v1/backend/node_modules/
-appraisal-v1/frontend/node_modules/
-appraisal-v1/backend/.env
-appraisal-v1/frontend/.env
-appraisal-v1/frontend/build/
-appraisal-v1/uploads/
+**/uploads/
 
-# appraisal-v2
-appraisal-v2/backend/node_modules/
-appraisal-v2/frontend/node_modules/
-appraisal-v2/backend/.env
-appraisal-v2/frontend/.env
-appraisal-v2/frontend/.env.local
-appraisal-v2/backend/uploads/
-appraisal-v2/frontend/dist/
-appraisal-v2/frontend/build/
+# Preserve intentional empty-directory markers.
+!uploads/.gitkeep
+!**/uploads/.gitkeep
 
-# Logs and OS
+# -----------------------------------------------------------------------------
+# Database data, dumps and backups
+# -----------------------------------------------------------------------------
+backups/
+**/backups/
+*.sql
+*.sql.gz
+*.dump
+*.dump.gz
+
+# Allow schema and migration SQL maintained as source code.
+!**/scripts/*.sql
+!**/mysql-init/*.sql
+!**/migrations/*.sql
+
+# MySQL runtime data if it is ever bind-mounted locally.
+mysql-data/
+**/mysql-data/
+mysql_data/
+**/mysql_data/
+
+# -----------------------------------------------------------------------------
+# Docker runtime and local override files
+# -----------------------------------------------------------------------------
+docker-compose.override.yml
+docker-compose.override.yaml
+compose.override.yml
+compose.override.yaml
+
+# Docker BuildKit / temporary build output
+.docker/
+**/.docker/
+
+# -----------------------------------------------------------------------------
+# Logs, process files and temporary files
+# -----------------------------------------------------------------------------
+logs/
+**/logs/
 *.log
->>>>>>> c124706 (Restructure: v1 subfolder + v2 rebuild added (Phase 3 complete))
+*.pid
+*.pid.lock
+*.seed
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+tmp/
+**/tmp/
+temp/
+**/temp/
+
+# Existing accidental shell/build artefacts
+CACHED
+ERROR
+[[]build
+eas-frontend-v2@*
+vite
+
+# -----------------------------------------------------------------------------
+# Test and analysis output
+# -----------------------------------------------------------------------------
+test-results/
+**/test-results/
+playwright-report/
+**/playwright-report/
+junit.xml
+lcov.info
+
+# Locally generated comparison and checksum reports
+dev-prod-diff.txt
+dev-source-checksums.sha256
+prod-source-checksums.sha256
+
+# -----------------------------------------------------------------------------
+# IDE and operating-system metadata
+# -----------------------------------------------------------------------------
+.vscode/
+**/.vscode/
+.idea/
+**/.idea/
+*.code-workspace
+
 .DS_Store
+**/.DS_Store
 Thumbs.db
+Desktop.ini
+
+# -----------------------------------------------------------------------------
+# Python helper artefacts
+# -----------------------------------------------------------------------------
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+**/.pytest_cache/
+.venv/
+**/.venv/
+venv/
+**/venv/
+
+# -----------------------------------------------------------------------------
+# Archive files
+# -----------------------------------------------------------------------------
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# -----------------------------------------------------------------------------
+# Git patch and merge residue
+# -----------------------------------------------------------------------------
+*.orig
+*.rej
+
+# -----------------------------------------------------------------------------
+# Local security-review and configuration artefacts
+# -----------------------------------------------------------------------------
+.gitignore.backup-*
+*_env_sanitised.txt
+
+# -----------------------------------------------------------------------------
+# Server-local development working copy
+# Canonical repository source remains /appraisal-v2
+# -----------------------------------------------------------------------------
+/appraisal-v2-dev/
