@@ -1,13 +1,54 @@
 #!/usr/bin/env bash
-
 set -Eeuo pipefail
 
+# =============================================================================
+# FILE:    scripts/promote-production.sh
+# PURPOSE: Controlled EAS v2 promotion workflow.
+#
+# SOURCE:
+#   /opt/eas-v2/appraisal-v2-dev/
+#
+# TRACKED PRODUCTION SOURCE:
+#   /opt/eas-v2/appraisal-v2/
+#
+# ENVIRONMENTS:
+#   Dev:        /opt/eas-v2/dev/     port 8080
+#   Production: /opt/eas-v2/deploy/  port 80
+#
+# MODES:
+#   No arguments:
+#     Read-only preflight and rsync preview.
+#
+#   --execute:
+#     1. Verify dev health
+#     2. Synchronize dev source into tracked production source
+#     3. Validate synchronized source and Compose configuration
+#     4. Commit and push the production-source change on main
+#     5. Back up the production database
+#     6. Build and restart production
+#     7. Verify production health
+#
+# IMPORTANT:
+#   - Dev source remains Git-ignored.
+#   - No Git commits are created during dev iteration.
+#   - Promotion must start from clean, synchronized main.
+#   - Runtime files, secrets, dependencies and build outputs are excluded.
+# =============================================================================
+
 ROOT_DIR="/opt/eas-v2"
+DEV_SOURCE_DIR="$ROOT_DIR/appraisal-v2-dev"
+PROD_SOURCE_DIR="$ROOT_DIR/appraisal-v2"
+DEV_ENV_DIR="$ROOT_DIR/dev"
 DEPLOY_DIR="$ROOT_DIR/deploy"
 BACKUP_SCRIPT="$ROOT_DIR/scripts/db-backup.sh"
+
 REMOTE_NAME="origin"
 EXPECTED_BRANCH="main"
-HEALTH_URL="http://localhost/api/health"
+
+DEV_HEALTH_URL="${DEV_HEALTH_URL:-http://localhost:8080/api/health}"
+PROD_HEALTH_URL="${PROD_HEALTH_URL:-http://localhost/api/health}"
+
+COMMIT_MESSAGE="${EAS_RELEASE_MESSAGE:-chore: promote verified dev source to production}"
 EXECUTE=false
 
 info() {
@@ -18,6 +59,10 @@ pass() {
     printf '\033[32mPASS:\033[0m %s\n' "$*"
 }
 
+warn() {
+    printf '\033[33mWARN:\033[0m %s\n' "$*" >&2
+}
+
 fail() {
     printf '\033[31mERROR:\033[0m %s\n' "$*" >&2
     exit 1
@@ -26,12 +71,19 @@ fail() {
 usage() {
     cat <<'USAGE'
 Usage:
-  ./scripts/promote-production.sh
-      Run all read-only preflight checks.
+  bash /opt/eas-v2/scripts/promote-production.sh
 
-  ./scripts/promote-production.sh --execute
-      Back up the database, build production images, recreate services,
-      and verify production health.
+      Run read-only preflight checks and show the files that would be
+      synchronized from appraisal-v2-dev to appraisal-v2.
+
+  bash /opt/eas-v2/scripts/promote-production.sh --execute
+
+      Synchronize verified dev source, commit and push the release on main,
+      back up the production database, rebuild production, and verify health.
+
+Optional release message:
+  EAS_RELEASE_MESSAGE="fix: expose employee ID in employee forms" \
+    bash /opt/eas-v2/scripts/promote-production.sh --execute
 USAGE
 }
 
@@ -51,13 +103,95 @@ case "${1:-}" in
         ;;
 esac
 
+require_command() {
+    local command_name="$1"
+
+    command -v "$command_name" >/dev/null 2>&1 ||
+        fail "Required command is not installed: $command_name"
+}
+
+wait_for_health() {
+    local url="$1"
+    local output_file="$2"
+    local description="$3"
+    local compose_dir="$4"
+    local attempts="${5:-36}"
+
+    info "Waiting for $description health: $url"
+
+    for attempt in $(seq 1 "$attempts"); do
+        if curl -fsS "$url" >"$output_file" 2>/dev/null; then
+            pass "$description health check passed."
+            cat "$output_file"
+            echo
+            return 0
+        fi
+
+        if [ "$attempt" -eq "$attempts" ]; then
+            (
+                cd "$compose_dir"
+                docker compose ps
+                docker compose logs --tail=150
+            ) || true
+
+            fail "$description did not become healthy within $((attempts * 5)) seconds."
+        fi
+
+        sleep 5
+    done
+}
+
+rsync_source() {
+    local dry_run_flag=()
+
+    if [ "$EXECUTE" != true ]; then
+        dry_run_flag=(--dry-run)
+    fi
+
+    rsync \
+        -a \
+        --delete \
+        --itemize-changes \
+        "${dry_run_flag[@]}" \
+        --exclude='.git/' \
+        --exclude='.env' \
+        --exclude='.env.*' \
+        --exclude='node_modules/' \
+        --exclude='dist/' \
+        --exclude='build/' \
+        --exclude='coverage/' \
+        --exclude='uploads/' \
+        --exclude='logs/' \
+        --exclude='*.log' \
+        --exclude='*.pid' \
+        --exclude='*.tmp' \
+        --exclude='.DS_Store' \
+        "$DEV_SOURCE_DIR/" \
+        "$PROD_SOURCE_DIR/"
+}
+
 cd "$ROOT_DIR"
 
-command -v git >/dev/null 2>&1 ||
-    fail "Git is not installed."
+require_command git
+require_command docker
+require_command curl
+require_command rsync
+require_command find
+require_command sort
+require_command head
+require_command cut
 
-command -v docker >/dev/null 2>&1 ||
-    fail "Docker is not installed."
+[ -d "$DEV_SOURCE_DIR" ] ||
+    fail "Dev source directory does not exist: $DEV_SOURCE_DIR"
+
+[ -d "$PROD_SOURCE_DIR" ] ||
+    fail "Production source directory does not exist: $PROD_SOURCE_DIR"
+
+[ -d "$DEV_ENV_DIR" ] ||
+    fail "Dev Compose directory does not exist: $DEV_ENV_DIR"
+
+[ -d "$DEPLOY_DIR" ] ||
+    fail "Production Compose directory does not exist: $DEPLOY_DIR"
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
     fail "$ROOT_DIR is not a Git working tree."
@@ -65,11 +199,11 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
 current_branch="$(git branch --show-current)"
 
 [ "$current_branch" = "$EXPECTED_BRANCH" ] ||
-    fail "Production promotion requires branch '$EXPECTED_BRANCH'; current branch is '$current_branch'."
+    fail "Promotion must start on '$EXPECTED_BRANCH'; current branch is '$current_branch'."
 
 if [ -n "$(git status --porcelain)" ]; then
     git status --short
-    fail "Working tree is not clean."
+    fail "Working tree must be clean before promotion."
 fi
 
 info "Fetching current remote references."
@@ -81,8 +215,37 @@ remote_commit="$(git rev-parse "$REMOTE_NAME/$EXPECTED_BRANCH")"
 [ "$local_commit" = "$remote_commit" ] ||
     fail "Local main does not exactly match $REMOTE_NAME/$EXPECTED_BRANCH."
 
-pass "Git branch and working-tree checks passed."
+pass "Git branch, remote synchronization, and working-tree checks passed."
 
+info "Validating Dev Compose configuration."
+(
+    cd "$DEV_ENV_DIR"
+    docker compose config --quiet
+) || fail "Dev Compose configuration is invalid."
+
+pass "Dev Compose configuration is valid."
+
+info "Checking current dev container status."
+(
+    cd "$DEV_ENV_DIR"
+    docker compose ps
+)
+
+if ! curl -fsS "$DEV_HEALTH_URL" >/tmp/eas-dev-health.json 2>/dev/null; then
+    (
+        cd "$DEV_ENV_DIR"
+        docker compose ps
+        docker compose logs --tail=150 backend frontend
+    ) || true
+
+    fail "Dev health check failed: $DEV_HEALTH_URL"
+fi
+
+pass "Dev health check passed."
+cat /tmp/eas-dev-health.json
+echo
+
+info "Validating production Compose configuration."
 (
     cd "$DEPLOY_DIR"
     docker compose config --quiet
@@ -90,15 +253,85 @@ pass "Git branch and working-tree checks passed."
 
 pass "Production Compose configuration is valid."
 
+echo
+info "Dev-to-production source synchronization preview:"
+rsync_source
+echo
+
 if [ "$EXECUTE" != true ]; then
+    pass "Promotion preflight completed."
+    echo "No files were copied, committed, pushed, built, or deployed."
     echo
-    pass "Dry-run preflight completed."
-    echo "No backup, build, container recreation, or deployment was performed."
+    echo "Review the synchronization preview above."
     echo
-    echo "To execute the approved production promotion:"
-    echo "  ./scripts/promote-production.sh --execute"
+    echo "To execute the controlled promotion:"
+    echo "  EAS_RELEASE_MESSAGE=\"fix: describe the verified change\" \\"
+    echo "    bash /opt/eas-v2/scripts/promote-production.sh --execute"
     exit 0
 fi
+
+info "Synchronizing verified dev source into tracked production source."
+rsync_source
+
+if [ -z "$(git status --porcelain -- "$PROD_SOURCE_DIR")" ]; then
+    warn "Dev and tracked production source are already identical."
+    warn "No release commit is required."
+else
+    info "Checking synchronized source for whitespace errors."
+
+    if ! git diff --check -- "$PROD_SOURCE_DIR"; then
+        fail "Synchronized source contains whitespace errors."
+    fi
+
+    info "Changed production-source files:"
+    git status --short -- "$PROD_SOURCE_DIR"
+
+    info "Staging synchronized production source."
+    git add -A -- "$PROD_SOURCE_DIR"
+
+    if git diff --cached --quiet -- "$PROD_SOURCE_DIR"; then
+        fail "No staged production-source changes were found after synchronization."
+    fi
+
+    if ! git diff --cached --check; then
+        git reset -- "$PROD_SOURCE_DIR"
+        fail "Staged release contains whitespace errors."
+    fi
+
+    echo
+    info "Release summary:"
+    git diff --cached --stat
+    echo
+
+    info "Creating release commit."
+    git commit -m "$COMMIT_MESSAGE"
+
+    release_commit="$(git rev-parse HEAD)"
+    pass "Release commit created: $release_commit"
+
+    info "Pushing release commit to $REMOTE_NAME/$EXPECTED_BRANCH."
+    git push "$REMOTE_NAME" "$EXPECTED_BRANCH"
+
+    git fetch "$REMOTE_NAME" "$EXPECTED_BRANCH"
+
+    pushed_commit="$(git rev-parse "$REMOTE_NAME/$EXPECTED_BRANCH")"
+
+    [ "$release_commit" = "$pushed_commit" ] ||
+        fail "Pushed main does not match the local release commit."
+
+    pass "Release commit pushed successfully."
+fi
+
+if [ -n "$(git status --porcelain)" ]; then
+    git status --short
+    fail "Working tree is not clean after release synchronization."
+fi
+
+current_commit="$(git rev-parse HEAD)"
+current_remote_commit="$(git rev-parse "$REMOTE_NAME/$EXPECTED_BRANCH")"
+
+[ "$current_commit" = "$current_remote_commit" ] ||
+    fail "Local main no longer matches $REMOTE_NAME/$EXPECTED_BRANCH."
 
 [ -x "$BACKUP_SCRIPT" ] ||
     fail "Backup script is missing or not executable: $BACKUP_SCRIPT"
@@ -125,7 +358,13 @@ latest_backup="$(
 
 pass "Database backup created: $latest_backup"
 
-info "Building production images using locked dependencies."
+info "Revalidating production Compose configuration after source synchronization."
+(
+    cd "$DEPLOY_DIR"
+    docker compose config --quiet
+) || fail "Production Compose configuration is invalid after synchronization."
+
+info "Building production images using locked container dependencies."
 (
     cd "$DEPLOY_DIR"
     docker compose build
@@ -137,27 +376,12 @@ info "Starting production services."
     docker compose up -d
 ) || fail "Production Compose startup failed."
 
-info "Waiting for production health."
-
-for attempt in $(seq 1 36); do
-    if curl -fsS "$HEALTH_URL" >/tmp/eas-production-health.json 2>/dev/null; then
-        pass "Production health check passed."
-        cat /tmp/eas-production-health.json
-        echo
-        break
-    fi
-
-    if [ "$attempt" -eq 36 ]; then
-        (
-            cd "$DEPLOY_DIR"
-            docker compose ps
-            docker compose logs --tail=150 mysql backend frontend
-        )
-        fail "Production did not become healthy within 180 seconds."
-    fi
-
-    sleep 5
-done
+wait_for_health \
+    "$PROD_HEALTH_URL" \
+    "/tmp/eas-production-health.json" \
+    "Production" \
+    "$DEPLOY_DIR" \
+    36
 
 (
     cd "$DEPLOY_DIR"
@@ -166,5 +390,5 @@ done
 
 echo
 pass "Production promotion completed successfully."
-echo "Commit : $local_commit"
+echo "Commit : $(git rev-parse HEAD)"
 echo "Backup : $latest_backup"
