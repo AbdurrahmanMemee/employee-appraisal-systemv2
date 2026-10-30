@@ -55,9 +55,14 @@ const employeeBodyRules = [
         .matches(/^[a-zA-Z\s'-]+$/).withMessage('Last name: letters, spaces, hyphens and apostrophes only'),
 
     body('employee_id')
-        .optional()
+        .optional({ nullable: true, checkFalsy: true })
         .trim()
-        .isLength({ max: 20 }).withMessage('Employee ID max 20 characters'),
+        .isLength({ min: 1, max: 20 })
+        .withMessage('Employee ID must be between 1 and 20 characters')
+        .matches(/^[A-Za-z0-9][A-Za-z0-9 _/-]*$/)
+        .withMessage(
+            'Employee ID may contain letters, numbers, spaces, hyphens, underscores, and forward slashes'
+        ),
 
     body('department')
         .trim().notEmpty().withMessage('Department is required')
@@ -414,7 +419,9 @@ router.post('/',
         }
 
         // Auto-generate display code
-        let employeeId = req.body.employee_id;
+        let employeeId = req.body.employee_id
+		? req.body.employee_id.trim()
+		: null;
         if (!employeeId) {
             employeeId = await generateEmployeeId();
         } else {
@@ -505,12 +512,31 @@ router.put('/:id',
         }
 
         const {
-            first_name, last_name, employee_number,
+            first_name, last_name, employee_id, employee_number,
             department, job_title, email, phone,
             start_date, manager_id,
         } = req.body;
 
-        // Validate new employee_number uniqueness (if changing it)
+        const normalizedEmployeeId = employee_id === undefined
+            ? existing.employee_id
+            : employee_id.trim();
+
+        // Validate new employee_id uniqueness if changing it.
+        if (normalizedEmployeeId !== existing.employee_id) {
+            const taken = await dbUtils.exists(
+                'SELECT 1 FROM employees WHERE employee_id = ? AND id != ?',
+                [normalizedEmployeeId, id]
+            );
+
+            if (taken) {
+                return res.status(409).json({
+                    success: false,
+                    message: `Employee ID '${normalizedEmployeeId}' is already in use.`,
+                });
+            }
+        }
+
+        // Validate new employee_number uniqueness if changing it.
         if (employee_number && employee_number !== existing.employee_number) {
             const taken = await dbUtils.exists(
                 'SELECT 1 FROM employees WHERE employee_number = ? AND id != ?',
@@ -553,6 +579,7 @@ router.put('/:id',
             `UPDATE employees SET
                 first_name    = ?,
                 last_name     = ?,
+				employee_id   = ?,
                 employee_number = ?,
                 department    = ?,
                 department_id = ?,
@@ -566,6 +593,7 @@ router.put('/:id',
             [
                 (first_name  || existing.first_name).trim(),
                 (last_name   || existing.last_name).trim(),
+                normalizedEmployeeId,
                 employee_number !== undefined ? employee_number : existing.employee_number,
                 newDept,
                 deptRow?.id  || existing.department_id,

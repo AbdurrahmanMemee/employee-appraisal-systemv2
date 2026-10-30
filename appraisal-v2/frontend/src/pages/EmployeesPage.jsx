@@ -39,7 +39,7 @@ import { employeeAPI }       from '../services/api';
 const PAGE_SIZE   = 20;
 const VIEWS       = { LIST: 'list', DETAIL: 'detail', FORM: 'form' };
 const SORT_FIELDS = {
-  employee_number: 'Emp #',
+  employee_id:     'Employee ID',
   full_name:       'Name',
   department_name: 'Department',
   status:          'Status',
@@ -199,7 +199,7 @@ const ListView = ({ onOpenDetail, onOpenCreate }) => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by name, employee number…"
+              placeholder="Search by name, employee ID…"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg
@@ -491,7 +491,7 @@ const DetailView = ({ employeeId, onBack, onEdit, onDeactivated }) => {
         {/* Personal info */}
         <Card>
           <CardHeader title="Personal Information" />
-          <InfoRow icon={Hash}     label="Employee Number" value={employee.employee_number} />
+          <InfoRow icon={Hash}     label="Employee ID" value={employee.employee_id} />
           <InfoRow icon={User}     label="ID / Passport"   value={employee.id_number} />
           <InfoRow icon={Mail}     label="Email"           value={employee.email} />
           <InfoRow icon={Phone}    label="Phone"           value={employee.phone} />
@@ -538,15 +538,15 @@ const DetailView = ({ employeeId, onBack, onEdit, onDeactivated }) => {
 const VALIDATION_RULES = {
   first_name:       [{ required: true }, { maxLength: 50 }],
   last_name:        [{ required: true }, { maxLength: 50 }],
-  employee_number: [
+  employee_id: [
     { required: true },
+    { maxLength: 20 },
     {
       custom: (value) =>
-        !value || /^[0-9]+$/.test(String(value))
+        !value || /^[A-Za-z0-9][A-Za-z0-9 _/-]*$/.test(String(value).trim())
           ? null
-          : 'Employee number must contain numbers only.',
+          : 'Employee ID may contain letters, numbers, spaces, hyphens, underscores, or forward slashes.',
     },
-    { min: 1, message: 'Employee number must be greater than zero.' },
   ],
   email:            [{ email: true }],
   id_number:        [{ maxLength: 20 }],
@@ -556,7 +556,7 @@ const VALIDATION_RULES = {
 const EMPTY_FORM = {
   first_name:      '',
   last_name:       '',
-  employee_number: '',
+  employee_id: 	   '',
   email:           '',
   phone:           '',
   id_number:       '',
@@ -593,7 +593,7 @@ const FormView = ({ employee, onBack, onSaved }) => {
     return {
       first_name:      employee.first_name      || '',
       last_name:       employee.last_name       || '',
-      employee_number: employee.employee_number || '',
+      employee_id:     employee.employee_id     || '',
       email:           employee.email           || '',
       phone:           employee.phone           || '',
       id_number:       employee.id_number       || '',
@@ -628,6 +628,7 @@ const FormView = ({ employee, onBack, onSaved }) => {
 
     // Build payload — omit empty optional strings to keep the body clean
     const payload = { ...form };
+	payload.employee_id = form.employee_id.trim();
 
     // The backend stores both the lookup ID and display name.
     const selectedDepartment = departments.find(
@@ -710,16 +711,16 @@ const FormView = ({ employee, onBack, onSaved }) => {
 
         {/* ── Employee number + ID ── */}
         <div className="grid grid-cols-2 gap-4 mb-4">
-          <Field label="Employee Number" required error={errors.employee_number}
-            hint="Positive whole number, for example 1001">
+          <Field label="Employee ID" required error={errors.employee_id}
+            hint="Unique alphanumeric identifier, for example EMP-1001">
             <Input
               type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={form.employee_number}
-              onChange={(e) => set('employee_number', e.target.value)}
-              placeholder="1001"
-              error={errors.employee_number}
+              maxLength={20}
+              autoCapitalize="characters"
+              value={form.employee_id}
+              onChange={(e) => set('employee_id', e.target.value)}
+              placeholder="EMP-1001"
+              error={errors.employee_id}
             />
           </Field>
           <Field label="ID / Passport Number" error={errors.id_number}>
