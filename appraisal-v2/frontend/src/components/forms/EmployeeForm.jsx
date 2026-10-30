@@ -10,7 +10,16 @@ import { employeeAPI } from '../../services/api';
 const VALIDATION_RULES = {
   first_name: [{ required: true }, { maxLength: 50 }],
   last_name: [{ required: true }, { maxLength: 50 }],
-  employee_number: [{ required: true }, { maxLength: 20 }],
+  employee_id: [
+  { required: true },
+  { maxLength: 20 },
+  {
+    custom: (value) =>
+      !value || /^[A-Za-z0-9][A-Za-z0-9 _/-]*$/.test(String(value).trim())
+        ? null
+        : 'Employee ID may contain letters, numbers, spaces, hyphens, underscores, or forward slashes.',
+  },
+],
   email: [{ email: true }],
   id_number: [{ maxLength: 20 }],
   phone: [{ maxLength: 20 }],
@@ -19,7 +28,7 @@ const VALIDATION_RULES = {
 const EMPTY_FORM = {
   first_name: '',
   last_name: '',
-  employee_number: '',
+  employee_id: '',
   email: '',
   phone: '',
   id_number: '',
@@ -57,7 +66,7 @@ export default function EmployeeForm({ employee, onBack, onSaved }) {
     return {
       first_name: employee.first_name || '',
       last_name: employee.last_name || '',
-      employee_number: employee.employee_number || '',
+      employee_id: employee.employee_id || '',
       email: employee.email || '',
       phone: employee.phone || '',
       id_number: employee.id_number || '',
@@ -93,7 +102,7 @@ export default function EmployeeForm({ employee, onBack, onSaved }) {
     const payload = {
       first_name: form.first_name.trim(),
       last_name: form.last_name.trim(),
-      employee_number: form.employee_number,
+      employee_id: form.employee_id,
     };
 
     // Add optional fields
@@ -197,18 +206,19 @@ export default function EmployeeForm({ employee, onBack, onSaved }) {
         {/* ── Employee number + ID ── */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <Field
-            label="Employee Number"
-            required
-            error={errors.employee_number}
-            hint="Unique identifier e.g. EMP-001"
-          >
-            <Input
-              value={form.employee_number}
-              onChange={(e) => set('employee_number', e.target.value)}
-              placeholder="EMP-001"
-              error={errors.employee_number}
-            />
-          </Field>
+		  label="Employee Number"
+		  required
+		  error={errors.employee_number}
+		  hint="Unique identifier e.g. EMP-001"
+		  >
+		  <Input
+		  value={form.employee_number}
+		  onChange={(e) => set('employee_number', e.target.value)}
+		  placeholder="EMP-001"
+		  error={errors.employee_number}
+		  />
+		  </Field>
+
           <Field label="ID / Passport Number" error={errors.id_number}>
             <Input
               value={form.id_number}

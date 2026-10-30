@@ -182,7 +182,7 @@ export const scheduleAPI = {
 
   create:   (data)     => call(() => api.post('/schedules', data)).then(r => r.data),
   update:   (id, data) => call(() => api.put(`/schedules/${id}`, data)).then(r => r.data),
-  postpone: (id, data) => call(() => api.post(`/schedules/${id}/postpone`, data)).then(r => r.data),
+  reschedule: (id, data) => call(() => api.patch(`/schedules/${id}/reschedule`, data)).then(r => r.data),
   cancel:   (id)       => call(() => api.post(`/schedules/${id}/cancel`)).then(r => r.data),
   delete:   (id)       => call(() => api.delete(`/schedules/${id}`)).then(r => r.data),
   sendInvite: (id, data = {}) =>

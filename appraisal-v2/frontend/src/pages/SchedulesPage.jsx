@@ -4,26 +4,26 @@
 //            'list'   — paginated table, filter by employee/status/date, overdue highlight
 //            'detail' — read-only schedule record with actions
 //            'form'   — create OR edit (admin/manager only)
-//            (postpone handled via modal dialog inside DetailView)
+//            (reschedule handled via modal dialog inside DetailView)
 //
 // KEY RULES:
 //   - appraisal_type is free text — offer common options via datalist
 //   - statuses: Scheduled | Completed | Postponed | Cancelled
 //   - is_overdue flag from backend — highlight prominently
-//   - postpone requires new_date + optional reason (separate endpoint)
+//   - reschedule permits an earlier or later date and requires new_date + optional reason
 //   - cancel: admin/manager. delete: admin only (hard)
 //   - calendar invite: POST /:id/invite — if SMTP not set returns ics_content for download
 //   - upcoming=true convenience param for Scheduled from today onward
 //
-// API:     scheduleAPI.getAll / getById / create / update / postpone / cancel / delete / invite
+// API:     scheduleAPI.getAll / getById / create / update / reschedule / cancel / delete / invite
 //          employeeAPI.getAll  — employee selector
 // =============================================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   CalendarDays, Plus, ArrowLeft, ChevronRight, ChevronUp, ChevronDown,
-  Edit2, Trash2, RefreshCw, User, Clock, AlertTriangle,
-  CheckCircle, XCircle, Calendar, Download, Mail, SkipForward,
+  Edit2, Trash2, RefreshCw, User, AlertTriangle,
+  XCircle, Calendar, Download,
 } from 'lucide-react';
 
 import {
@@ -42,6 +42,14 @@ const VIEWS     = { LIST: 'list', DETAIL: 'detail', FORM: 'form' };
 
 const STATUSES = ['Scheduled', 'Postponed', 'Completed', 'Cancelled'];
 
+const REMINDER_OPTIONS = [
+  { value: '', label: 'No reminder' },
+  { value: '60', label: '1 hour before' },
+  { value: '120', label: '2 hours before' },
+  { value: '1440', label: '1 day before' },
+  { value: '2880', label: '2 days before' },
+  { value: '10080', label: '1 week before' },
+];
 const APPRAISAL_TYPES = [
   'Annual Review',
   'Mid-Year Review',
@@ -60,11 +68,22 @@ const STATUS_COLORS = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const today     = () => new Date().toISOString().split('T')[0];
-const dayAfter = (val) => {
-  const date = new Date(`${String(val).split('T')[0]}T00:00:00`);
+const toDateInputValue = (val) => {
+  if (!val) return '';
+  return String(val).split('T')[0];
+};
+const toTimeInputValue = (val) => val ? String(val).slice(0, 5) : '09:00';
+
+const today = () => {
+  const now = new Date();
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return localDate.toISOString().split('T')[0];
+};
+const tomorrow = () => {
+  const date = new Date();
   date.setDate(date.getDate() + 1);
-  return date.toISOString().split('T')[0];
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().split('T')[0];
 };
 
 const formatDate = (val) => {
@@ -116,52 +135,95 @@ const SortButton = ({ field, currentField, currentDir, onSort, children }) => {
 };
 
 // =============================================================================
-// POSTPONE DIALOG — modal for rescheduling
+// RESCHEDULE DIALOG — modal for moving an appraisal earlier or later
 // =============================================================================
-
-const PostponeDialog = ({ schedule, onConfirm, onCancel }) => {
+const RescheduleDialog = ({ schedule, onConfirm, onCancel }) => {
+  const currentDate = toDateInputValue(schedule.scheduled_date);
   const [newDate, setNewDate] = useState('');
+  const [newTime, setNewTime] = useState(toTimeInputValue(schedule.scheduled_time));
   const [reason,  setReason]  = useState('');
   const [error,   setError]   = useState('');
 
-  const handleConfirm = () => {
-    if (!newDate) { setError('New date is required.'); return; }
-    if (newDate <= String(schedule.scheduled_date).split('T')[0]) { setError('New date must be later than the current scheduled date.'); return; }
-    onConfirm({ new_date: newDate, reason: reason || undefined });
-  };
+const handleConfirm = () => {
+  if (!newDate || !newTime) {
+    setError('A new date and start time are required.');
+    return;
+  }
+  if (newDate < tomorrow()) {
+    setError('The new date must be tomorrow or later.');
+    return;
+  }
+
+  if (newDate === currentDate) {
+    setError('Select a date different from the current scheduled date.');
+    return;
+  }
+
+  onConfirm({
+    new_date: newDate,
+    reason: reason.trim() || undefined,
+  });
+};
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-        <h3 className="text-lg font-bold text-gray-900 mb-1">Postpone Appraisal</h3>
+        <h3 className="text-lg font-bold text-gray-900 mb-1">Reschedule Appraisal</h3>
         <p className="text-sm text-gray-500 mb-4">
-          Rescheduling <strong>{schedule.employee_name}</strong> from{' '}
+          Moving <strong>{schedule.employee_name}</strong> from{' '}
           <strong>{formatDate(schedule.scheduled_date)}</strong>
         </p>
-
         {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-
         <div className="space-y-3 mb-6">
           <Field label="New Date" required>
-            <Input type="date" value={newDate}
-              onChange={e => { setNewDate(e.target.value); setError(''); }}
-              min={dayAfter(schedule.scheduled_date)} />
+
+            <Input
+
+              type="date"
+
+              value={newDate}
+
+              min={tomorrow()}
+
+              onChange={e => {
+
+                const selectedDate = e.target.value;
+
+                if (selectedDate && selectedDate < tomorrow()) {
+
+                  setNewDate('');
+
+                  setError('The new date must be tomorrow or later.');
+
+                  return;
+
+                }
+
+                setNewDate(selectedDate);
+
+                setError('');
+
+              }}
+
+            />
+
+          </Field>
+          <Field label="Start Time" required>
+            <Input type="time" value={newTime} onChange={e => { setNewTime(e.target.value); setError(''); }} />
           </Field>
           <Field label="Reason" hint="Optional — will be appended to notes">
             <Textarea value={reason} onChange={e => setReason(e.target.value)}
-              rows={2} placeholder="e.g. Employee unavailable, manager travel…" />
+              rows={2} placeholder="e.g. Employee availability changed" />
           </Field>
         </div>
-
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-          <Button variant="primary" onClick={handleConfirm}>Postpone</Button>
+          <Button variant="primary" onClick={handleConfirm}>Reschedule</Button>
         </div>
       </div>
     </div>
   );
 };
-
 // =============================================================================
 // VIEW 1 — LIST
 // =============================================================================
@@ -443,7 +505,7 @@ const DetailView = ({ scheduleId, onBack, onEdit, onDeleted }) => {
   const [error,       setError]       = useState('');
   const [actioning,   setActioning]   = useState(false);
   const [confirming,  setConfirming]  = useState(null); // 'cancel' | 'delete'
-  const [postponeOpen, setPostponeOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
 
   const fetchSchedule = useCallback(async () => {
@@ -489,12 +551,12 @@ const DetailView = ({ scheduleId, onBack, onEdit, onDeleted }) => {
     }
   };
 
-  const handlePostpone = async ({ new_date, reason }) => {
-    setPostponeOpen(false);
+  const handleReschedule = async ({ new_date, scheduled_time, reason }) => {
+    setRescheduleOpen(false);
     setActioning(true);
     try {
-      await scheduleAPI.postpone(scheduleId, { new_date, reason });
-      showToast(`Appraisal postponed to ${formatDate(new_date)}.`, 'success');
+      await scheduleAPI.reschedule(scheduleId, { new_date, scheduled_time, reason });
+      showToast(`Appraisal rescheduled to ${formatDate(new_date)}.`, 'success');
       fetchSchedule();
     } catch (err) {
       showToast(err.message, 'error');
@@ -548,7 +610,7 @@ const DetailView = ({ scheduleId, onBack, onEdit, onDeleted }) => {
   if (!schedule) return null;
 
   const canEdit     = isManager && ['Scheduled', 'Postponed'].includes(schedule.status);
-  const canPostpone = isManager && ['Scheduled', 'Postponed'].includes(schedule.status);
+  const canReschedule = isManager && ['Scheduled', 'Postponed'].includes(schedule.status);
   const canCancel   = isManager && !['Cancelled', 'Completed'].includes(schedule.status);
   const canDelete   = isAdmin;
   const canInvite = isManager && schedule.status !== 'Cancelled';
@@ -606,10 +668,10 @@ const DetailView = ({ scheduleId, onBack, onEdit, onDeleted }) => {
                 .ics Invite
               </Button>
             )}
-            {canPostpone && (
-              <Button variant="secondary" size="sm" icon={SkipForward}
-                onClick={() => setPostponeOpen(true)} loading={actioning}>
-                Postpone
+            {canReschedule && (
+              <Button variant="secondary" size="sm" icon={Calendar}
+                onClick={() => setRescheduleOpen(true)} loading={actioning}>
+                Reschedule
               </Button>
             )}
             {canEdit && (
@@ -641,6 +703,8 @@ const DetailView = ({ scheduleId, onBack, onEdit, onDeleted }) => {
           <div className="space-y-0 text-sm">
             {[
               ['Scheduled Date', formatDate(schedule.scheduled_date)],
+              ['Start Time', toTimeInputValue(schedule.scheduled_time)],
+              ['Duration', `${schedule.duration_minutes || 60} minutes`],
               ['Appraisal Type', schedule.appraisal_type],
               ['Status',         schedule.status],
               ['Employee',       schedule.employee_name],
@@ -660,7 +724,7 @@ const DetailView = ({ scheduleId, onBack, onEdit, onDeleted }) => {
           <CardHeader title="Reminders & Tracking" />
           <div className="space-y-0 text-sm">
             {[
-              ['Reminder Date',  schedule.reminder_date ? formatDate(schedule.reminder_date) : '—'],
+              ['Reminder', REMINDER_OPTIONS.find(o => o.value === String(schedule.reminder_offset_minutes ?? ''))?.label || 'No reminder'],
               ['Reminder Sent',  schedule.reminder_sent ? 'Yes' : 'No'],
               ['Scheduled By',   `User #${schedule.scheduled_by_user_id}`],
               ['Created',        formatDate(schedule.created_at)],
@@ -685,12 +749,12 @@ const DetailView = ({ scheduleId, onBack, onEdit, onDeleted }) => {
         </Card>
       )}
 
-      {/* Postpone dialog */}
-      {postponeOpen && (
-        <PostponeDialog
+      {/* Reschedule dialog */}
+      {rescheduleOpen && (
+        <RescheduleDialog
           schedule={schedule}
-          onConfirm={handlePostpone}
-          onCancel={() => setPostponeOpen(false)}
+          onConfirm={handleReschedule}
+          onCancel={() => setRescheduleOpen(false)}
         />
       )}
 
@@ -728,8 +792,10 @@ const VALIDATION_RULES = {
 const EMPTY_FORM = {
   employee_id:    '',
   scheduled_date: '',
+  scheduled_time: '09:00',
+  duration_minutes: 60,
   appraisal_type: 'Annual Review',
-  reminder_date:  '',
+  reminder_offset_minutes: '1440',
   notes:          '',
 };
 
@@ -749,8 +815,10 @@ const FormView = ({ schedule, onBack, onSaved }) => {
     return {
       employee_id:    String(schedule.employee_id ?? ''),
       scheduled_date: schedule.scheduled_date?.split('T')[0] || '',
+      scheduled_time: toTimeInputValue(schedule.scheduled_time),
+      duration_minutes: schedule.duration_minutes || 60,
       appraisal_type: schedule.appraisal_type || 'Annual Review',
-      reminder_date:  schedule.reminder_date?.split('T')[0]  || '',
+      reminder_offset_minutes: schedule.reminder_offset_minutes == null ? '' : String(schedule.reminder_offset_minutes),
       notes:          schedule.notes          || '',
     };
   });
@@ -767,18 +835,30 @@ const FormView = ({ schedule, onBack, onSaved }) => {
     setForm(prev => ({ ...prev, [field]: value }));
     validateField(field, value);
   };
+  const handleScheduledDateChange = (value) => {
+    setForm(prev => ({
+      ...prev,
+      scheduled_date: value,
+    }));
+    validateField('scheduled_date', value);
+    setServerError('');
+  };
 
   const handleSubmit = async () => {
     if (!validate(form)) return;
+    if (form.scheduled_date < tomorrow()) {
+      setServerError('The scheduled date must be tomorrow or later.');
+      return;
+    }
 
     setSubmitting(true);
     setServerError('');
     try {
       if (isEdit) {
         await scheduleAPI.update(schedule.id, {
-          scheduled_date: form.scheduled_date,
+          duration_minutes: parseInt(form.duration_minutes, 10),
           appraisal_type: form.appraisal_type,
-          reminder_date:  form.reminder_date  || null,
+          reminder_offset_minutes: form.reminder_offset_minutes === '' ? null : parseInt(form.reminder_offset_minutes, 10),
           notes:          form.notes          || null,
         });
         showToast('Schedule updated.', 'success');
@@ -786,8 +866,10 @@ const FormView = ({ schedule, onBack, onSaved }) => {
         await scheduleAPI.create({
           employee_id:    parseInt(form.employee_id, 10),
           scheduled_date: form.scheduled_date,
+          scheduled_time: form.scheduled_time,
+          duration_minutes: parseInt(form.duration_minutes, 10),
           appraisal_type: form.appraisal_type,
-          reminder_date:  form.reminder_date  || null,
+          reminder_offset_minutes: form.reminder_offset_minutes === '' ? null : parseInt(form.reminder_offset_minutes, 10),
           notes:          form.notes          || null,
         });
         showToast('Appraisal scheduled.', 'success');
@@ -819,7 +901,7 @@ const FormView = ({ schedule, onBack, onSaved }) => {
           title={isEdit ? 'Edit Schedule' : 'Schedule Appraisal'}
           subtitle={isEdit
             ? 'Update the scheduled date, type, or notes.'
-            : 'Book a future appraisal for an employee.'}
+            : 'Book an appraisal for an employee.'}
         />
 
         {serverError && (
@@ -850,10 +932,81 @@ const FormView = ({ schedule, onBack, onSaved }) => {
           </Field>
 
           <Field label="Scheduled Date" required error={errors.scheduled_date}>
-            <Input type="date" value={form.scheduled_date}
-              onChange={e => set('scheduled_date', e.target.value)}
-              error={errors.scheduled_date}
-              min={dayAfter(schedule.scheduled_date)} />
+
+
+            {isEdit ? (
+
+
+              <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+
+
+                <p className="text-sm font-medium text-gray-700">
+
+
+                  {formatDate(schedule.scheduled_date)}
+
+
+                </p>
+
+
+                <p className="text-xs text-gray-500 mt-1">
+
+
+                  Use the Reschedule action to change this date.
+
+
+                </p>
+
+
+              </div>
+
+
+            ) : (
+
+
+              <Input
+
+
+                type="date"
+
+
+                value={form.scheduled_date}
+
+
+                onChange={e => set('scheduled_date', e.target.value)}
+
+
+                error={errors.scheduled_date}
+
+
+                min={tomorrow()}
+
+
+              />
+
+
+            )}
+
+
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <Field label="Start Time" required>
+            {isEdit ? (
+              <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700">
+                {toTimeInputValue(schedule.scheduled_time)}
+                <p className="text-xs text-gray-500 mt-1">Use Reschedule to change the start time.</p>
+              </div>
+            ) : (
+              <Input type="time" value={form.scheduled_time}
+                onChange={e => set('scheduled_time', e.target.value)} required />
+            )}
+          </Field>
+          <Field label="Duration (minutes)" required>
+            <Input type="number" min="15" max="480" step="15"
+              value={form.duration_minutes}
+              onChange={e => set('duration_minutes', e.target.value)} />
           </Field>
         </div>
 
@@ -894,16 +1047,17 @@ const FormView = ({ schedule, onBack, onSaved }) => {
           </Field>
         </div>
 
-        {/* Reminder Date */}
+        {/* Reminder */}
         <div className="mb-4">
-          <Field label="Reminder Date"
-            hint="Optional — send a reminder before the appraisal date">
-            <Input type="date" value={form.reminder_date}
-              onChange={e => set('reminder_date', e.target.value)}
-              max={form.scheduled_date || undefined} />
+          <Field label="Reminder" hint="Relative to the meeting start time">
+            <Select value={form.reminder_offset_minutes}
+              onChange={e => set('reminder_offset_minutes', e.target.value)}>
+              {REMINDER_OPTIONS.map(option => (
+                <option key={option.value || 'none'} value={option.value}>{option.label}</option>
+              ))}
+            </Select>
           </Field>
         </div>
-
         {/* Notes */}
         <div className="mb-6">
           <Field label="Notes" hint="Any context, preparation notes, or special instructions">

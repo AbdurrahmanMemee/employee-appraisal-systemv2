@@ -27,6 +27,7 @@ const path         = require('path');
 const { pool, testConnection }     = require('./config/database');
 const { authenticate }             = require('./middleware/auth');
 const { notFound, errorHandler }   = require('./middleware/errorHandler');
+const { startReminderWorker, stopReminderWorker } = require('./services/reminderWorker');
 
 // Route files — one per resource
 const authRoutes      = require('./routes/auth');
@@ -201,6 +202,7 @@ const startServer = async () => {
     console.log(` API         : http://localhost:${PORT}/api`);
     console.log('========================================');
     console.log('');
+    startReminderWorker();
   });
 
   // ---- Graceful shutdown ----------------------------------------------------
@@ -211,6 +213,7 @@ const startServer = async () => {
     console.log(`\n${signal} received. Shutting down gracefully...`);
     server.close(async () => {
       console.log('HTTP server closed.');
+      stopReminderWorker();
       await pool.end();
       console.log('Database pool closed.');
       console.log('Goodbye.');

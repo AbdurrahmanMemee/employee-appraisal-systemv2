@@ -136,7 +136,7 @@ router.get('/upcoming', asyncHandler(async (req, res) => {
 
     const { rows } = await dbUtils.query(
         `SELECT sa.id, sa.scheduled_date, sa.appraisal_type, sa.status,
-                sa.reminder_date, sa.notes,
+                sa.reminder_offset_minutes, sa.notes,
                 e.id AS employee_id,
                 CONCAT(e.first_name,' ',e.last_name) AS employee_name,
                 e.department, e.job_title,
