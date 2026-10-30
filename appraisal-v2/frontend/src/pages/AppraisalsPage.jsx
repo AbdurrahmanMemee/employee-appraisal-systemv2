@@ -159,7 +159,7 @@ const ListView = ({ onOpenDetail, onOpenCreate }) => {
   const [employees, setEmployees] = useState([]);
   useEffect(() => {
     employeeAPI
-      .getAll({ status: 'active', limit: 200 })
+      .getAll({ active: 'true', limit: 200 })
       .then((res) => setEmployees(res.data?.employees || res.data || []))
       .catch(() => {
         /* non-critical */

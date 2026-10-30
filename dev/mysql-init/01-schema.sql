@@ -322,12 +322,15 @@ CREATE TABLE scheduled_appraisals (
     id                  INT AUTO_INCREMENT PRIMARY KEY,
     employee_id         INT NOT NULL,
     scheduled_date      DATE NOT NULL,
+    scheduled_time      TIME NOT NULL DEFAULT '09:00:00',
+    duration_minutes    SMALLINT UNSIGNED NOT NULL DEFAULT 60,
     appraisal_type      VARCHAR(100) DEFAULT 'Annual Review',
     scheduled_by_user_id INT NOT NULL,
     status              ENUM('Scheduled','Completed','Cancelled','Postponed') DEFAULT 'Scheduled',
     notes               TEXT NULL,
-    reminder_date       DATE NULL,
+    reminder_offset_minutes INT UNSIGNED NULL DEFAULT 1440,
     reminder_sent       BOOLEAN DEFAULT FALSE,
+    CONSTRAINT chk_reminder_offset CHECK (reminder_offset_minutes IS NULL OR reminder_offset_minutes IN (60,120,1440,2880,10080)),
     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -339,7 +342,7 @@ CREATE TABLE scheduled_appraisals (
     INDEX idx_employee_id   (employee_id),
     INDEX idx_scheduled_date (scheduled_date),
     INDEX idx_status        (status),
-    INDEX idx_reminder_date (reminder_date)
+    INDEX idx_reminder_pending (reminder_sent, scheduled_date, scheduled_time)
 ) ENGINE=InnoDB;
 
 -- =============================================================================

@@ -42,6 +42,7 @@ import {
 import useAppStore, { useUser, useConfig, useIsAdmin, useIsManager } from '../store/useAppStore';
 import useFormValidation from '../hooks/useFormValidation';
 import { meetingAPI, employeeAPI } from '../services/api';
+import PeoplePresentSearch from '../components/forms/PeoplePresentSearch';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -122,7 +123,7 @@ const ListView = ({ onOpenDetail, onOpenCreate }) => {
   // Employee list for filter dropdown
   const [employees, setEmployees] = useState([]);
   useEffect(() => {
-    employeeAPI.getAll({ status: 'active', limit: 200 })
+    employeeAPI.getAll({ active: 'true', limit: 200 })
       .then(res => setEmployees(res.data?.employees || res.data || []))
       .catch(() => {});
   }, []);
@@ -660,7 +661,7 @@ const FormView = ({ meeting, onBack, onSaved, onViewMeeting }) => {
   // Active employees for the employee selector
   const [employees, setEmployees] = useState([]);
   useEffect(() => {
-    employeeAPI.getAll({ status: 'active', limit: 200 })
+    employeeAPI.getAll({ active: 'true', limit: 200 })
       .then(res => setEmployees(res.data?.employees || res.data || []))
       .catch(() => {});
   }, []);
@@ -692,6 +693,11 @@ const FormView = ({ meeting, onBack, onSaved, onViewMeeting }) => {
   };
 
   const handleSubmit = async () => {
+    if (form.people_present.length > 500) {
+      setServerError('People Present cannot exceed 500 characters.');
+      return;
+    }
+
     const valid = validate(form);
     if (!valid) return;
 
@@ -826,11 +832,11 @@ const FormView = ({ meeting, onBack, onSaved, onViewMeeting }) => {
             </Select>
           </Field>
 
-          <Field label="People Present" hint="Names of all attendees">
-            <Input
+          <Field label="People Present" hint="Search employees or add an external attendee">
+            <PeoplePresentSearch
               value={form.people_present}
-              onChange={e => set('people_present', e.target.value)}
-              placeholder="e.g. John Smith, Jane Doe"
+              onChange={value => set('people_present', value)}
+              disabled={submitting}
             />
           </Field>
         </div>

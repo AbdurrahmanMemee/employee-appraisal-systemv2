@@ -37,6 +37,7 @@ import {
 import useAppStore from '../../store/useAppStore';
 import useFormValidation from '../../hooks/useFormValidation';
 import { appraisalAPI, employeeAPI, configAPI } from '../../services/api';
+import PeoplePresentSearch from './PeoplePresentSearch';
 
 // ─── HELPER FUNCTIONS ──────────────────────────────────────────────────────
 
@@ -355,7 +356,7 @@ export default function AppraisalForm({ appraisal, onBack, onSaved }) {
   const [employees, setEmployees] = useState([]);
   useEffect(() => {
     employeeAPI
-      .getAll({ status: 'active', limit: 200 })
+      .getAll({ active: 'true', limit: 200 })
       .then((res) => {
         const list = res.data?.employees || res.data || [];
         setEmployees(list);
@@ -515,6 +516,11 @@ export default function AppraisalForm({ appraisal, onBack, onSaved }) {
   const handleSubmit = async () => {
     if (loadingSections) {
       setSectionsError('Please wait while appraisal sections are loading.');
+      return;
+    }
+
+    if (form.people_present.length > 500) {
+      setServerError('People Present cannot exceed 500 characters.');
       return;
     }
 
@@ -705,11 +711,14 @@ export default function AppraisalForm({ appraisal, onBack, onSaved }) {
             />
           </Field>
 
-          <Field label="People Present">
-            <Input
+          <Field
+            label="People Present"
+            hint="Search employees or add an external attendee"
+          >
+            <PeoplePresentSearch
               value={form.people_present}
-              onChange={(e) => set('people_present', e.target.value)}
-              placeholder="Names of all attendees"
+              onChange={(value) => set('people_present', value)}
+              disabled={submitting}
             />
           </Field>
         </div>
