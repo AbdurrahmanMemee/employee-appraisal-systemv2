@@ -264,6 +264,10 @@ require_command find
 require_command sort
 require_command head
 require_command cut
+require_command grep
+require_command cmp
+require_command dirname
+require_command basename
 
 [ -d "$DEV_SOURCE_DIR" ] ||
     fail "Dev source directory does not exist: $DEV_SOURCE_DIR"
@@ -276,6 +280,8 @@ require_command cut
 
 [ -d "$DEPLOY_DIR" ] ||
     fail "Production Compose directory does not exist: $DEPLOY_DIR"
+
+validate_session_log
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
     fail "$ROOT_DIR is not a Git working tree."
@@ -341,6 +347,10 @@ echo
 info "Dev-to-production source synchronization preview:"
 rsync_source
 echo
+info "Required release session log:"
+echo "  Source      : $SESSION_LOG_SOURCE"
+echo "  Destination : $SESSION_LOG_DESTINATION"
+echo
 
 if [ "$EXECUTE" != true ]; then
     pass "Promotion preflight completed."
@@ -350,12 +360,25 @@ if [ "$EXECUTE" != true ]; then
     echo
     echo "To execute the controlled promotion:"
     echo "  EAS_RELEASE_MESSAGE=\"fix: describe the verified change\" \\"
+    echo "  EAS_SESSION_LOG=\"$SESSION_LOG_RELATIVE\" \\"
     echo "    bash /opt/eas-v2/scripts/promote-production.sh --execute"
     exit 0
 fi
 
 info "Synchronizing verified dev source into tracked production source."
 rsync_source
+
+[ -f "$SESSION_LOG_DESTINATION" ] ||
+    fail "Session log was not synchronized into production source: $SESSION_LOG_DESTINATION"
+
+[ ! -L "$SESSION_LOG_DESTINATION" ] ||
+    fail "Synchronized session log must not be a symbolic link: $SESSION_LOG_DESTINATION"
+
+if ! cmp -s "$SESSION_LOG_SOURCE" "$SESSION_LOG_DESTINATION"; then
+    fail "Synchronized session log does not match the approved dev session log."
+fi
+
+pass "Session log synchronized and verified: $SESSION_LOG_RELATIVE"
 
 if [ -z "$(git status --porcelain -- "$PROD_SOURCE_DIR")" ]; then
     warn "Dev and tracked production source are already identical."
