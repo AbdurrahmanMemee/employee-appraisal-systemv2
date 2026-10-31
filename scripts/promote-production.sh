@@ -49,6 +49,10 @@ DEV_HEALTH_URL="${DEV_HEALTH_URL:-http://localhost:8080/api/health}"
 PROD_HEALTH_URL="${PROD_HEALTH_URL:-http://localhost/api/health}"
 
 COMMIT_MESSAGE="${EAS_RELEASE_MESSAGE:-chore: promote verified dev source to production}"
+SESSION_LOG_INPUT="${EAS_SESSION_LOG:-}"
+SESSION_LOG_SOURCE=""
+SESSION_LOG_RELATIVE=""
+SESSION_LOG_DESTINATION=""
 EXECUTE=false
 
 info() {
@@ -81,9 +85,17 @@ Usage:
       Synchronize verified dev source, commit and push the release on main,
       back up the production database, rebuild production, and verify health.
 
-Optional release message:
+Required session log:
+  EAS_SESSION_LOG="docs/session-logs/PROJECT_SESSION_LOG_v22.md" \
+    bash /opt/eas-v2/scripts/promote-production.sh
+
+Execute with a release message:
   EAS_RELEASE_MESSAGE="fix: expose employee ID in employee forms" \
+  EAS_SESSION_LOG="docs/session-logs/PROJECT_SESSION_LOG_v22.md" \
     bash /opt/eas-v2/scripts/promote-production.sh --execute
+
+The session-log path must be relative to:
+  /opt/eas-v2/appraisal-v2-dev/
 USAGE
 }
 
@@ -108,6 +120,78 @@ require_command() {
 
     command -v "$command_name" >/dev/null 2>&1 ||
         fail "Required command is not installed: $command_name"
+}
+
+validate_session_log() {
+    local dev_source_real
+    local session_log_real
+    local session_log_dir
+    local session_log_name
+
+    [ -n "$SESSION_LOG_INPUT" ] ||
+        fail "EAS_SESSION_LOG is required. Provide a path relative to $DEV_SOURCE_DIR."
+
+    case "$SESSION_LOG_INPUT" in
+        /*)
+            fail "EAS_SESSION_LOG must be relative to $DEV_SOURCE_DIR, not an absolute path."
+            ;;
+    esac
+
+    case "$SESSION_LOG_INPUT" in
+        *.md)
+            ;;
+        *)
+            fail "EAS_SESSION_LOG must identify a Markdown file ending in .md."
+            ;;
+    esac
+
+    SESSION_LOG_SOURCE="$DEV_SOURCE_DIR/$SESSION_LOG_INPUT"
+
+    [ -e "$SESSION_LOG_SOURCE" ] ||
+        fail "Session log does not exist: $SESSION_LOG_SOURCE"
+
+    [ ! -L "$SESSION_LOG_SOURCE" ] ||
+        fail "Session log must not be a symbolic link: $SESSION_LOG_SOURCE"
+
+    [ -f "$SESSION_LOG_SOURCE" ] ||
+        fail "Session log is not a regular file: $SESSION_LOG_SOURCE"
+
+    [ -s "$SESSION_LOG_SOURCE" ] ||
+        fail "Session log is empty: $SESSION_LOG_SOURCE"
+
+    session_log_dir="$(dirname "$SESSION_LOG_SOURCE")"
+    session_log_name="$(basename "$SESSION_LOG_SOURCE")"
+
+    dev_source_real="$(cd "$DEV_SOURCE_DIR" && pwd -P)"
+    session_log_real="$(cd "$session_log_dir" && pwd -P)/$session_log_name"
+
+    case "$session_log_real" in
+        "$dev_source_real"/*)
+            ;;
+        *)
+            fail "Session log resolves outside the approved dev source: $session_log_real"
+            ;;
+    esac
+
+    SESSION_LOG_SOURCE="$session_log_real"
+    SESSION_LOG_RELATIVE="${SESSION_LOG_SOURCE#"$dev_source_real"/}"
+    SESSION_LOG_DESTINATION="$PROD_SOURCE_DIR/$SESSION_LOG_RELATIVE"
+
+    case "$SESSION_LOG_RELATIVE" in
+        docs/session-logs/PROJECT_SESSION_LOG_v*.md)
+            ;;
+        *)
+            fail "Session log must match docs/session-logs/PROJECT_SESSION_LOG_v*.md"
+            ;;
+    esac
+
+    if grep -Eq 'MYSQL_.*PASSWORD|JWT_SECRET|BEGIN (RSA |OPENSSH )?PRIVATE KEY' \
+        "$SESSION_LOG_SOURCE"; then
+        fail "Session log appears to contain a secret or private key."
+    fi
+
+    pass "Session log validation passed."
+    info "Session log: $SESSION_LOG_RELATIVE"
 }
 
 wait_for_health() {
