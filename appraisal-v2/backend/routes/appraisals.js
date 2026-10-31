@@ -87,10 +87,16 @@ const getAppraisalInScope = async (appraisalId, user) => {
     const accessibleIds = await getAccessibleEmployeeIds(user);
     let sql = `
         SELECT a.*,
-               CONCAT(e.first_name,' ',e.last_name) AS employee_name,
-               e.department, e.job_title
+               CONCAT(e.first_name, ' ', e.last_name) AS employee_name,
+               e.department,
+               e.job_title,
+               CASE
+                   WHEN m.id IS NULL THEN NULL
+                   ELSE CONCAT(m.first_name, ' ', m.last_name)
+               END AS manager_name
         FROM   appraisals a
         JOIN   employees e ON a.employee_id = e.id
+        LEFT JOIN employees m ON e.manager_id = m.id
         WHERE  a.id = ?`;
     const params = [appraisalId];
     if (accessibleIds !== null) {

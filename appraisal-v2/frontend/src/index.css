@@ -1,6 +1,6 @@
 /* =============================================================================
    FILE:    src/index.css
-   PURPOSE: Global styles. Tailwind base + a small set of custom utilities.
+   PURPOSE: Global Tailwind styles and appraisal print styling.
    ============================================================================= */
 
 @tailwind base;
@@ -8,64 +8,194 @@
 @tailwind utilities;
 
 /* Smooth scrolling everywhere */
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+}
 
 /* Ensure the app fills the viewport */
-#root { min-height: 100vh; }
+#root {
+  min-height: 100vh;
+}
 
-/* Custom scrollbar (optional, looks nicer on Chrome/Edge) */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #f1f5f9; }
-::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #64748b; }
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
 
-/* Focus ring — accessible but not ugly */
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Accessible keyboard focus */
 :focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
 
-/* Print: hide nav, show content only */
-@media print {
-  nav, aside, button, .no-print { display: none !important; }
-  body { background: white; }
-}
 /* =============================================================================
-   PRINT STYLES — append to the bottom of src/index.css
-   Used by the AppraisalsPage PrintView component.
-   Hides all UI chrome when printing and shows only .print-layout.
+   APPRAISAL PRINT STYLES
+
+   Do not hide body > *, #root, main, or another ancestor of .print-layout.
+   The React application and dedicated print view are rendered inside #root.
    ============================================================================= */
 
+@page {
+  size: A4 portrait;
+  margin: 15mm;
+}
+
 @media print {
-  /* Hide everything by default */
-  body > * { display: none !important; }
-
-  /* Show only the print layout */
-  .print-layout,
-  .print-layout * { display: block !important; }
-
-  /* Hide screen-only elements inside the detail view */
-  .print\:hidden { display: none !important; }
-
-  /* Page setup */
-  @page {
-    size: A4 portrait;
-    margin: 20mm 15mm;
+  html,
+  body,
+  #root {
+    display: block !important;
+    width: 100% !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
   }
 
-  /* Reset font for print */
   body {
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 11pt;
+    font-size: 10pt;
     color: #000;
-    background: #fff;
   }
 
-  /* Avoid page breaks inside sections */
-  tr, .print-layout > div { page-break-inside: avoid; }
+  /*
+   * Hide application chrome and controls without hiding an ancestor of the
+   * dedicated print document.
+   */
+  header,
+  nav,
+  aside,
+  button,
+  .no-print,
+  .print\:hidden {
+    display: none !important;
+  }
 
-  /* Table borders print correctly */
-  table { border-collapse: collapse; width: 100%; }
-  th, td { border: 1px solid #999; padding: 6px 8px; }
-  thead { background-color: #eee !important; -webkit-print-color-adjust: exact; }
+  /*
+   * Remove AppLayout's screen width and spacing constraints while preserving
+   * the React root and main element.
+   */
+  main {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /*
+   * Override Tailwind's hidden utility exclusively for the print document.
+   */
+  .print-layout {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  /*
+   * The PrintView root uses Tailwind p-8 for screen-independent layout.
+   * @page already supplies the physical page margins, so remove that
+   * additional outer padding during print to avoid content overflowing
+   * fractionally onto an otherwise blank trailing page.
+   */
+  .print-layout > div {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /*
+   * Prevent an empty trailing page caused by residual minimum-height
+   * constraints inherited from the application layout.
+   */
+  .print-layout,
+  .print-layout > div {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  .print-layout * {
+    visibility: visible !important;
+    box-sizing: border-box;
+  }
+
+  /*
+   * Preserve native table element display modes. Do not apply display:block
+   * indiscriminately to every descendant of .print-layout.
+   */
+  .print-layout table {
+    display: table !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .print-layout thead {
+    display: table-header-group !important;
+  }
+
+  .print-layout tbody {
+    display: table-row-group !important;
+  }
+
+  .print-layout tfoot {
+    display: table-footer-group !important;
+  }
+
+  .print-layout tr {
+    display: table-row !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-layout th,
+  .print-layout td {
+    display: table-cell !important;
+    border: 1px solid #999 !important;
+    padding: 6px 8px !important;
+  }
+
+  .print-layout h1,
+  .print-layout h2 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .print-layout h1,
+  .print-layout h2,
+  .print-layout p {
+    orphans: 3;
+    widows: 3;
+  }
+
+  .print-layout .bg-gray-50,
+  .print-layout .bg-gray-100,
+  .print-layout .bg-gray-200 {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
 }

@@ -968,16 +968,44 @@ const PrintView = ({ appraisal }) => (
     )}
 
     {/* ── Signatures ── */}
+    {/* ── Signatures ── */}
     <div className="mt-12 pt-6 border-t border-gray-400 grid grid-cols-2 gap-12 text-sm">
       <div>
         <p className="font-semibold mb-8">Employee Signature</p>
-        <div className="border-b border-gray-400 mb-1" />
-        <p className="text-gray-500">{appraisal.employee_name}</p>
+        <div className="border-b border-gray-400 mb-2" />
+
+        <div className="space-y-4">
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Name</p>
+            <p className="min-h-[1.25rem] border-b border-gray-400">
+              {appraisal.employee_name || '\u00A0'}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Date</p>
+            <div className="min-h-[1.25rem] border-b border-gray-400" />
+          </div>
+        </div>
       </div>
+
       <div>
         <p className="font-semibold mb-8">Manager Signature</p>
-        <div className="border-b border-gray-400 mb-1" />
-        <p className="text-gray-500">Date: _______________</p>
+        <div className="border-b border-gray-400 mb-2" />
+
+        <div className="space-y-4">
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Name</p>
+            <p className="min-h-[1.25rem] border-b border-gray-400">
+              {appraisal.manager_name || '\u00A0'}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Date</p>
+            <div className="min-h-[1.25rem] border-b border-gray-400" />
+          </div>
+        </div>
       </div>
     </div>
   </div>

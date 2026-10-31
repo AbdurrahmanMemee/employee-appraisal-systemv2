@@ -1,39 +1,133 @@
 /* =============================================================================
-   PRINT STYLES — append to the bottom of src/index.css
-   Used by the AppraisalsPage PrintView component.
-   Hides all UI chrome when printing and shows only .print-layout.
+   FILE:    src/print-styles.css
+   PURPOSE: Appraisal print-layout compatibility styles.
+
+   IMPORTANT:
+   Never hide body > *, #root, main, or another ancestor of .print-layout.
+   If an ancestor has display: none, its descendants cannot be restored by
+   applying display: block to .print-layout.
    ============================================================================= */
 
+@page {
+  size: A4 portrait;
+  margin: 15mm;
+}
+
 @media print {
-  /* Hide everything by default */
-  body > * { display: none !important; }
-
-  /* Show only the print layout */
-  .print-layout,
-  .print-layout * { display: block !important; }
-
-  /* Hide screen-only elements inside the detail view */
-  .print\:hidden { display: none !important; }
-
-  /* Page setup */
-  @page {
-    size: A4 portrait;
-    margin: 20mm 15mm;
+  html,
+  body,
+  #root {
+    display: block !important;
+    width: 100% !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
   }
 
-  /* Reset font for print */
   body {
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 11pt;
+    font-size: 10pt;
     color: #000;
-    background: #fff;
   }
 
-  /* Avoid page breaks inside sections */
-  tr, .print-layout > div { page-break-inside: avoid; }
+  /*
+   * Hide application chrome and screen-only content without hiding an
+   * ancestor of the dedicated print document.
+   */
+  header,
+  nav,
+  aside,
+  button,
+  .no-print,
+  .print\:hidden {
+    display: none !important;
+  }
 
-  /* Table borders print correctly */
-  table { border-collapse: collapse; width: 100%; }
-  th, td { border: 1px solid #999; padding: 6px 8px; }
-  thead { background-color: #eee !important; -webkit-print-color-adjust: exact; }
+  /*
+   * Remove screen-layout constraints while preserving the React root and
+   * the main element containing the print document.
+   */
+  main {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /*
+   * Tailwind's hidden utility sets display: none. This rule must override it
+   * during printing so that the dedicated appraisal document is rendered.
+   */
+  .print-layout {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  .print-layout * {
+    visibility: visible !important;
+    box-sizing: border-box;
+  }
+
+  .print-layout table {
+    display: table !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .print-layout thead {
+    display: table-header-group !important;
+  }
+
+  .print-layout tbody {
+    display: table-row-group !important;
+  }
+
+  .print-layout tfoot {
+    display: table-footer-group !important;
+  }
+
+  .print-layout tr {
+    display: table-row !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-layout th,
+  .print-layout td {
+    display: table-cell !important;
+    border: 1px solid #999 !important;
+    padding: 6px 8px !important;
+  }
+
+  .print-layout h1,
+  .print-layout h2 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .print-layout h1,
+  .print-layout h2,
+  .print-layout p {
+    orphans: 3;
+    widows: 3;
+  }
+
+  .print-layout .bg-gray-50,
+  .print-layout .bg-gray-100,
+  .print-layout .bg-gray-200 {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
 }
